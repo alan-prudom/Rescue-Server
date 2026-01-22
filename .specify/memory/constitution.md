@@ -1,50 +1,60 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+Version change: 0.0.0 → 1.0.0
+Modified principles: Replaced placeholders with actual principles. Added Test-First, Network Bridging, and Auditability.
+Added sections: Core Principles, Operating Constraints, Maintenance
+Templates requiring updates: ✅ None (First pass)
+Follow-up TODOs: None
+-->
+
+# Rescue Server Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Simplicity & Reliability
+The Rescue Server exists to provide critical tools when other systems have failed. Therefore, the server itself must be extremely simple and robust. It MUST rely on standard, widely available technologies (Python's built-in `http.server`, standard HTML/CSS) and minimize external runtime dependencies. Complex frameworks or databases are strictly prohibited for the core file-serving functionality.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Universal Accessibility
+The client-side dashboard MUST be accessible by any device with a basic web browser. It MUST NOT require modern JavaScript features, complex rendering engines, or specific browser extensions, as the client machine may be running in a recovery mode or using legacy software.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Test-First (NON-NEGOTIABLE)
+Development MUST follow a Test-Driven Development (TDD) approach. Given the critical nature of rescue operations, every feature (setup scripts, proxy logic, file serving) MUST have a failing test case defined before implementation begins. This ensures the server behaves predictably when deployed in the field.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Verified Network Bridging
+The Rescue Server acts as a gateway for the LAN-locked PC. This "Bridging" capability—where the client requests the server to fetch external resources—MUST be secured by a robust **Integration Test Layer**. We cannot assume the network stack works; we must verifying the complete round-trip (Client Request → Server Fetch → Client Response) in a controlled environment before deployment.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. State Auditing & Versioning
+The Rescue Server MUST maintain a precise audit trail of all actions taken by the client PC. Ideally, state changes on the PC side should be tracked via Git (proxied by the server if necessary). All interactions and tools MUST be implemented as **Bash scripts** to ensure transparency, auditability, and compatibility with the versioned history workflow.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### VI. Clear & Actionable Guidance
+The user interface (both CLI and Web Dashboard) MUST provide unambiguous, actionable instructions. Ambiguity leads to errors during crisis moments. Every error message or instruction step MUST tell the user exactly what to do next.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+## Operating Constraints
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+### Technology Stack
+- **Server**: Python 3 (via `uv` or system generic).
+- **Transport**: Standard HTTP (Port 8000 default).
+- **Frontend**: Static HTML5 + CSS. No build steps (e.g., Webpack, React) for the dashboard.
+- **Tools**: Bash Scripts (primary interface language).
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### Security
+- **Access Control**: Open access on the local network (LAN) by default to facilitate immediate connection.
+- **Audit**: All state-changing operations MUST be logged to the audit trail/git history.
+
+## Maintenance
+
+### Directory Structure Integrity
+The server relies on a strict directory structure (`scripts`, `manuals`, `drivers`, `audit_logs`). Tools and scripts MUST respect this structure and NOT create arbitrary folders in the root without a constitution amendment.
+
+### Documentation
+All scripts provided by the server MUST contain headers explaining their purpose, usage arguments, and expected output.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This Constitution serves as the primary source of architectural truth for the Rescue Server project.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+- **Supremacy**: All architectural decisions, feature requests, and code reviews must align with these principles.
+- **Amendments**: Changes to this document require a Pull Request with explicit "Constitution Amendment" labeling and must include a rationale for the change.
+- **Versioning**: This document follows Semantic Versioning. Major changes involve altering Core Principles; Minor changes involve adding sections; Patch changes involve clarifications.
+
+**Version**: 1.0.0 | **Ratified**: 2026-01-22 | **Last Amended**: 2026-01-22
