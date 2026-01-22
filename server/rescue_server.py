@@ -10,6 +10,77 @@ class RescueHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     Supports GET (static files) and POST (file uploads + text pastes).
     """
 
+    CACHE_DIR = os.path.join(os.getcwd(), 'downloads_cache')
+
+    def do_GET(self):
+        # Feature 004: Proxy Download Cache
+        if self.path.startswith('/proxy'):
+            self._handle_proxy_request()
+            return
+            
+        super().do_GET()
+
+    def _handle_proxy_request(self):
+        """Downloads a remote file to cache and serves it."""
+        from urllib.parse import urlparse, parse_qs
+        import urllib.request
+        import shutil
+        import hashlib
+
+        # Ensure cache exists
+        if not os.path.exists(self.CACHE_DIR):
+            os.makedirs(self.CACHE_DIR)
+
+        # Parse query
+        query_components = parse_qs(urlparse(self.path).query)
+        if 'url' not in query_components:
+            self.send_error(400, "Missing 'url' parameter")
+            return
+        
+        target_url = query_components['url'][0]
+        
+        # Security: Basic validation
+        if not target_url.startswith(('http://', 'https://')):
+            self.send_error(400, "Invalid protocol (http/https only)")
+            return
+            
+        if 'localhost' in target_url or '127.0.0.1' in target_url:
+            self.send_error(403, "Access to local resources denied")
+            return
+
+        # Generate safe filename from URL
+        filename = os.path.basename(urlparse(target_url).path)
+        if not filename or filename == '/':
+            # If no filename in URL, hash the URL
+            filename = hashlib.md5(target_url.encode()).hexdigest() + ".bin"
+            
+        cache_path = os.path.join(self.CACHE_DIR, filename)
+
+        try:
+            # Check cache
+            if not os.path.exists(cache_path):
+                print(f"[*] Proxy: Downloading {target_url} to {cache_path}")
+                # Download with timeout
+                with urllib.request.urlopen(target_url, timeout=30) as response, open(cache_path, 'wb') as out_file:
+                    shutil.copyfileobj(response, out_file)
+            else:
+                print(f"[*] Proxy: Cache hit for {filename}")
+
+            # Serve the file
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/octet-stream')
+            self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
+            file_size = os.path.getsize(cache_path)
+            self.send_header("Content-Length", str(file_size))
+            self.end_headers()
+
+            with open(cache_path, 'rb') as f:
+                self.wfile.write(f.read())
+
+        except Exception as e:
+            print(f"[!] Proxy Error: {e}")
+            self.send_error(500, f"Download failed: {str(e)}")
+
     def do_POST(self):
         """Handle uploads and pastes from the client."""
         try:

@@ -458,7 +458,6 @@ main() {
     create_test_script
     create_push_evidence_script "$ip"
     create_remote_desktop_script "$ip"
-    create_fetch_tool_script "$ip"
     
     log_audit_event "SETUP" "Directories and scripts generated."
     

@@ -104,7 +104,6 @@ create_index_html() {
     <h2>📂 Scripts & Tools</h2>
     <ul>
         <li><a href="scripts/">Browse Scripts Directory</a></li>
-        <li><a href="archive/fetch_tool.sh" onclick="alert('Run this to use the proxy:\n wget http://'+window.location.host+'/scripts/fetch_tool.sh'); return false;">⬇️ Get Proxy Downloader Tool</a></li>
     </ul>
 
     <h2>📚 Manuals & PDFs</h2>
@@ -200,69 +199,6 @@ echo "Success! The PC can read files from the Mac server."
 echo "Current Date: $(date)"
 EOF
     chmod +x "$BASE_DIR/scripts/test_connection.sh"
-}
-
-# Feature 004: Proxy Download Cache (Client Tool)
-create_fetch_tool_script() {
-    local ip="$1"
-    echo "Generating fetch_tool.sh script..."
-cat << EOF > "$BASE_DIR/scripts/fetch_tool.sh"
-#!/bin/bash
-# Fetch Tool - Download files via Mac Proxy Cache
-# Usage: bash fetch_tool.sh <URL> [OUTPUT_FILENAME]
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-TARGET_URL="\$1"
-OUTPUT_NAME="\$2"
-
-if [ -z "\$TARGET_URL" ]; then
-    echo "Usage: \$0 <URL> [OUTPUT_FILENAME]"
-    exit 1
-fi
-
-# Determine output filename if not provided
-if [ -z "\$OUTPUT_NAME" ]; then
-    OUTPUT_NAME=\$(basename "\$TARGET_URL")
-fi
-
-echo -e "\${BLUE}[*] Requesting: \$TARGET_URL\${NC}"
-echo "    Via Proxy: http://${ip:-[MAC-IP]}:8000/proxy"
-
-# Use curl to hit the proxy endpoint
-# -J: Use Content-Disposition filename
-# -O: Modify to write to file
-# -L: Follow redirects (though proxy handles them usually)
-
-if command -v curl >/dev/null 2>&1; then
-    curl -f -L "http://${ip:-[MAC-IP]}:8000/proxy?url=\$TARGET_URL" -o "\$OUTPUT_NAME"
-    
-    if [ \$? -eq 0 ]; then
-        echo -e "✅  \${GREEN}Download Complete: \$OUTPUT_NAME\${NC}"
-        ls -lh "\$OUTPUT_NAME"
-    else
-        echo -e "\${RED}[!] Download Failed.\${NC}"
-        exit 1
-    fi
-elif command -v wget >/dev/null 2>&1; then
-    wget -O "\$OUTPUT_NAME" "http://${ip:-[MAC-IP]}:8000/proxy?url=\$TARGET_URL"
-    
-     if [ \$? -eq 0 ]; then
-        echo -e "✅  \${GREEN}Download Complete: \$OUTPUT_NAME\${NC}"
-        ls -lh "\$OUTPUT_NAME"
-    else
-        echo -e "\${RED}[!] Download Failed.\${NC}"
-        exit 1
-    fi
-else
-    echo "Error: Neither curl nor wget found."
-    exit 1
-fi
-EOF
-    chmod +x "$BASE_DIR/scripts/fetch_tool.sh"
 }
 
 # Feature 003: Remote Desktop Bootstrap (Mac <-> Linux VNC)
@@ -458,7 +394,6 @@ main() {
     create_test_script
     create_push_evidence_script "$ip"
     create_remote_desktop_script "$ip"
-    create_fetch_tool_script "$ip"
     
     log_audit_event "SETUP" "Directories and scripts generated."
     
