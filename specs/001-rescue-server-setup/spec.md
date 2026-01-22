@@ -12,7 +12,7 @@
 - Q: Should the script handle permissions and auto-launch? → A: Yes, script should self-chmod +x and provide an interactive prompt to launch the server immediately.
 - Q: How should we address the new Constitutional requirements? → A: Spec updated to mandate Git initialization, audit logging, and Bash interfaces (Option A).
 - Q: How should the dashboard link to content? → A: Dynamic Linking (Link to /drivers/, rely on server auto-index).
-- Q: What client tools are in scope for MVP? → A: `test_connection.sh` AND `push_audit.sh` (as per Constitution V).
+- Q: What client tools are in scope for MVP? → A: `test_connection.sh` AND `push_evidence.sh` (as per Constitution V).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -43,7 +43,7 @@ As a user who has just run the setup, I want the option to immediately start the
 **Acceptance Scenarios**:
 
 1. **Given** the setup is complete, **When** the script reaches the end, **Then** it prompts: "Do you want to start the server now? [y/N]".
-2. **Given** the user answers "y" or "Y", **When** processed, **Then** the script executes `cd ~/Desktop/rescue-site && uv run python -m http.server 8000` and keeps running.
+2. **Given** the user answers "y" or "Y", **When** processed, **Then** the script executes `cd ~/Desktop/rescue-site && uv run python server/rescue_server.py 8000` and keeps running.
 3. **Given** the user answers "n" or "N", **When** processed, **Then** the script exits and prints manual launch instructions.
 
 ---
@@ -61,7 +61,7 @@ As a technician, I need all technical actions to be auditable. The system must i
 1. **Given** setup runs, **When** directories are created, **Then** `git init` must be executed in the `rescue-site` root.
 2. **Given** git is initialized, **When** initial files are created, **Then** an initial commit "Initial commit: Rescue Server Setup" must be made.
 3. **Given** the setup process runs, **When** complete, **Then** a log entry is written to `audit_logs/server_audit.log` (or similar) recording the initialization timestamp.
-4. **Given** setup completes, **When** `scripts/` is checked, **Then** a `push_audit.sh` script exists for client-side logging.
+4. **Given** setup completes, **When** `scripts/` is checked, **Then** a `push_evidence.sh` script exists for client-side logging and uploads.
 
 ---
 
@@ -98,7 +98,7 @@ As a user on the PC, I want to visit the server's URL and see a dashboard that a
 - **FR-005**: System MUST attempt to automatically detect the Mac's IP address (prioritizing `en0` then `en1`).
 - **FR-006**: System MUST output clear, actionable instructions for starting the server manually.
 - **FR-007**: System MUST set executable permissions (`chmod +x`) on the generated scripts and the setup script itself.
-- **FR-008**: System MUST offer an interactive prompt ("Start server now? [y/N]") to launch `http.server` (skip if non-interactive TTY).
+- **FR-008**: System MUST offer an interactive prompt ("Start server now? [y/N]") to launch the custom `server/rescue_server.py` (skip if non-interactive TTY).
 - **FR-009**: System MUST initialize a git repository in the rescue site root (`git init`).
 - **FR-010**: System MUST create a `.gitignore` file that excludes OS-specific metadata (e.g., `.DS_Store`, `Thumbs.db`) and temporary files.
 - **FR-011**: System MUST create an initial commit with the exact message "Initial commit: Rescue Server Setup" containing all generated files and the `.gitignore`.
@@ -106,7 +106,9 @@ As a user on the PC, I want to visit the server's URL and see a dashboard that a
 - **FR-013**: System MUST prohibit the use of non-Bash interpreters (Python, Node) within the tools generated inside the `scripts/` directory.
 - **FR-014**: System MUST append audit events to `audit_logs/server_audit.log` using the format: `[YYYY-MM-DD HH:MM:SS] ACTION: <Description>`.
 - **FR-015**: System MUST ensure the audit log file is append-only and is NOT tracked by Git after the initial commit (to avoid merge conflicts during rapid logging).
-- **FR-016**: System MUST generate a `scripts/push_audit.sh` utility script for the client that uses `curl` to send log entries to the server's logging endpoint (or mocks this behavior if the server is read-only).
+- **FR-016**: System MUST generate a `scripts/push_evidence.sh` utility script for the client that uses `curl` to send log entries and files to the server's evidence endpoint.
+- **FR-017**: System MUST provide an integrated help guide (`manuals/system_help.html`) describing the repository structure and script usage.
+- **FR-018**: System MUST ensure all HTML and server responses use **UTF-8 encoding** to prevent visual glitches with emojis and special characters.
 
 ### Key Entities
 
