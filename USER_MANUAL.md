@@ -60,11 +60,33 @@ bash push_evidence.sh bluescreen.png
 
 ### C. Instant Text Evidence
 If you have a snippet of text (like a terminal error) but don't want to save a file:
-1.  Copy the text on the PC.
-2.  Go to the **Web Dashboard**.
-3.  Paste into the **Instant Evidence** box.
-4.  Click **Save Evidence**.
-5.  The AI on the Mac can now see it in `evidence/[DATE]_paste.txt`.
+1. Copy the text on the PC.
+2. Go to the **Web Dashboard**.
+3. Paste into the **Instant Evidence** box.
+4. Click **Save Evidence**.
+5. The AI on the Mac can now see it in `evidence/[DATE]_paste.txt`.
+
+### D. Master Rescue Bootstrap (One-Click Setup)
+
+The fastest way to prep a PC for remote support is the Master Bootstrap script. This single command installs all necessary tools, configures SSH, and launches the VNC server.
+
+```bash
+wget http://[MAC-IP]:8000/scripts/pc_rescue_bootstrap.sh
+bash pc_rescue_bootstrap.sh
+```
+
+### E. VNC Remote Desktop
+
+Once the bootstrap is complete (or if you run `./scripts/start_vnc.sh` manually), you can connect to the PC GUI from the Mac.
+
+1. **On Mac**: Open the **Screen Sharing** app.
+2. **Connect**: Enter `vnc://[PC-IP]:5900` (or the URL provided by the script).
+3. **Authentication**: The default password is `rescue` (if requested), but most scripts are configured for "No Auth" to maximize compatibility with the Mac client.
+
+### F. Heartbeat Monitoring
+
+The PC bootstrap script includes a real-time monitor that sends periodic status updates to the Mac every 2 minutes. You will see these appear directly in the Mac's terminal running `rescue_server.py`:
+`[*] Incoming Status: [BOOTSTRAP] [HEARTBEAT] VNC: RUNNING | Connect: vnc://...`
 
 ---
 

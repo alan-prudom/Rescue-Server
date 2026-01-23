@@ -3,6 +3,9 @@
 # Standard: Bash 3.2+
 # Constitution: Principal I (Simplicity), III (Test-First), V (Auditing)
 
+VERSION="20260122-2307"
+echo "[*] Rescue Server Setup Utility (v$VERSION)"
+
 # Self-chmod to ensure the script is executable
 chmod +x "$0"
 
@@ -15,9 +18,13 @@ AUDIT_LOG_FILE="${AUDIT_LOG_FILE:-$BASE_DIR/audit_logs/server_audit.log}"
 # FR-005: Get the Mac's IP address (prioritizing en0 then en1)
 get_ip_address() {
     local ip=""
-    ip=$(ipconfig getifaddr en0)
+    # Primary: Apple's ipconfig
+    ip=$(ipconfig getifaddr en0 2>/dev/null)
+    [ -z "$ip" ] && ip=$(ipconfig getifaddr en1 2>/dev/null)
+    
+    # Secondary: Generic ifconfig search for private IPs
     if [ -z "$ip" ]; then
-        ip=$(ipconfig getifaddr en1)
+        ip=$(ifconfig | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | grep -E '^(192\.168|10\.|172\.(1[6-9]|2[0-9]|3[0-1]))' | head -n 1)
     fi
     echo "$ip"
 }
@@ -183,6 +190,15 @@ create_help_docs() {
     <div class="note">
         <strong>Pro Tip:</strong> Ensure you are on the same Wi-Fi or Ethernet network as the Mac for the IP address to be reachable.
     </div>
+
+    <h3>⚠️ VNC Troubleshooting</h3>
+    <p>If you see a black screen or cannot connect:</p>
+    <ol>
+        <li>Log out of the Linux PC.</li>
+        <li>On the login screen, click the <strong>Gear Icon</strong> (⚙️).</li>
+        <li>Select <strong>"GNOME on Xorg"</strong> (or "Ubuntu on Xorg").</li>
+        <li>Log back in and run <code>start_vnc.sh</code> again.</li>
+    </ol>
     
     <p><br><a href="../index.html">⬅️ Back to Dashboard</a></p>
 </body>
@@ -209,6 +225,8 @@ create_fetch_tool_script() {
 cat << EOF > "$BASE_DIR/scripts/fetch_tool.sh"
 #!/bin/bash
 # Fetch Tool - Download files via Mac Proxy Cache
+VERSION="20260122-2255"
+echo "[*] PC Rescue Station: Fetch Tool (v\$VERSION)"
 # Usage: bash fetch_tool.sh <URL> [OUTPUT_FILENAME]
 
 RED='\033[0;31m'
@@ -268,99 +286,207 @@ EOF
 # Feature 003: Remote Desktop Bootstrap (Mac <-> Linux VNC)
 create_remote_desktop_script() {
     local ip="$1"
-    echo "Generating start_vnc.sh script..."
-cat << 'EOF' > "$BASE_DIR/scripts/start_vnc.sh"
+    local build_version="$(date "+%Y%m%d-%H%M%S")"
+    echo "Generating start_vnc.sh script (v$build_version)..."
+    
+    # Use a quoted heredoc to avoid any expansion/escaping issues during generation
+    cat << 'VNC_EOF' > "$BASE_DIR/scripts/start_vnc.sh"
 #!/bin/bash
-# One-Click VNC Bootstrap for Rescue Operations
-# Compatible with Ubuntu, Fedora, Debian, SystemRescue
+# One-Click VNC Bootstrap
 # Target: macOS Screen Sharing.app
+# BUILD_VERSION_PLACEHOLDER
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m'
+# MAC_SERVER_URL placeholder will be replaced by sed
 
-echo -e "${BLUE}[*] PC Rescue Station: Remote Desktop Bootstrap${NC}"
+log_status() {
+    local msg="$1"
+    printf "%s\n" "$msg"
+    if command -v curl >/dev/null 2>&1; then
+        curl -s -d "content=[VNC-STATUS] $msg" "$MAC_SERVER_URL/" >/dev/null &
+    fi
+}
 
-# 1. Disable Firewall (Common blocker on Fedora/RHEL)
-if command -v systemctl >/dev/null 2>&1; then
-    echo "  -> Stopping firewalld/ufw to allow VNC..."
-    sudo systemctl stop firewalld 2>/dev/null
-    sudo systemctl stop ufw 2>/dev/null
-fi
+printf "${BLUE}[*] PC Rescue Station: Remote Desktop Bootstrap (v$VERSION)${NC}\n"
+log_status "Bootstrapping VNC (v$VERSION) on $(hostname)..."
 
-# 2. Detect Environment & Choose Server
-VNC_BIN=""
-USE_WAYLAND=0
+# 0. Cleanup
+sudo killall x11vnc x0vncserver vino-server gnome-remote-desktop-daemon 2>/dev/null || true
+sleep 1
 
-if [ "$XDG_SESSION_TYPE" == "wayland" ]; then
-    echo -e "${BLUE}[*] Wayland detected. Preferring tigervnc (x0vncserver).${NC}"
-    USE_WAYLAND=1
-else
-    # Ensure DISPLAY is set for X11
-    if [ -z "$DISPLAY" ]; then
-        export DISPLAY=:0
+# 1. Firewall
+if command -v ufw >/dev/null 2>&1; then sudo ufw disable >/dev/null 2>&1; fi
+if command -v systemctl >/dev/null 2>&1; then sudo systemctl stop firewalld 2>/dev/null; fi
+
+# 2. Environment
+VNC_BIN="x11vnc"
+if [ "$XDG_SESSION_TYPE" = "wayland" ]; then
+    if command -v grdctl >/dev/null 2>&1 || [ -f "/usr/bin/grdctl" ]; then
+        VNC_BIN="gnome-remote-desktop"
     fi
 fi
 
-# 3. Check/Install Dependencies
-if [ "$USE_WAYLAND" -eq 1 ]; then
-    # Wayland Path: Try x0vncserver
-    if ! command -v x0vncserver >/dev/null 2>&1; then
-        echo "  -> Installing tigervnc-server for Wayland support..."
-        if command -v dnf >/dev/null 2>&1; then
-            sudo dnf install -y tigervnc-server
-        elif command -v apt-get >/dev/null 2>&1; then
-            sudo apt-get update && sudo apt-get install -y tigervnc-scraping-server
-        fi
-    fi
-    VNC_BIN="x0vncserver"
-else
-    # X11 Path: Prefer x11vnc
-    if ! command -v x11vnc >/dev/null 2>&1; then
-        echo "  -> Installing x11vnc..."
-        if command -v apt-get >/dev/null 2>&1; then
-            sudo apt-get update && sudo apt-get install -y x11vnc net-tools
-        elif command -v dnf >/dev/null 2>&1; then
-            sudo dnf install -y x11vnc
-        elif command -v pacman >/dev/null 2>&1; then
-            sudo pacman -S --noconfirm x11vnc
-        fi
-    fi
-    VNC_BIN="x11vnc"
-fi
-
-# 4. Launch VNC
+# 3. Launch
 MY_IP=$(hostname -I | cut -d' ' -f1)
-echo -e "${GREEN}[*] Starting VNC Server ($VNC_BIN)...${NC}"
+log_status "Starting $VNC_BIN on $MY_IP:5900..."
 
-if [ "$VNC_BIN" == "x0vncserver" ]; then
-    # TigerVNC logic (Works on Wayland/X11)
-    # create password file manually
+if [ "$VNC_BIN" = "gnome-remote-desktop" ]; then
+    grdctl --system vnc enable 2>/dev/null
+    grdctl --system vnc set-auth-method password
+    grdctl --system vnc set-password "rescue"
+    systemctl --user restart gnome-remote-desktop
+    log_status "GNOME Remote Desktop started."
+else
     mkdir -p ~/.vnc
-    echo "rescue" | vncpasswd -f > ~/.vnc/passwd
-    chmod 600 ~/.vnc/passwd
+    XAUTH=$(find /run/user/$(id -u) -name Xauthority 2>/dev/null | head -n 1)
     
-    # Launch with Mac compatibility flags
-    x0vncserver -passwordfile ~/.vnc/passwd -display :0 &
+    # Kill any existing
+    sudo killall x11vnc 2>/dev/null || true
     
-    echo ""
-    echo -e "✅  ${GREEN}SUCCESS: Wayland VNC Ready!${NC}"
+    if [ -n "$XAUTH" ]; then
+        log_status "Using XAuth: $XAUTH"
+        sudo x11vnc -listen 0.0.0.0 -display :0 -auth "$XAUTH" -forever -shared -nopw -bg -noshm -o ~/.vnc/x11vnc.log 2>/dev/null
+    else
+        sudo x11vnc -listen 0.0.0.0 -display :0 -auth guess -forever -shared -nopw -bg -noshm -o ~/.vnc/x11vnc.log 2>/dev/null
+    fi
+    
+    sleep 3
+    if ! pgrep x11vnc >/dev/null; then
+        log_status "Display :0 cold boot. Trying :1..."
+        if [ -n "$XAUTH" ]; then
+             sudo x11vnc -listen 0.0.0.0 -display :1 -auth "$XAUTH" -forever -shared -nopw -bg -noshm -o ~/.vnc/x11vnc.log 2>/dev/null
+        else
+             sudo x11vnc -listen 0.0.0.0 -display :1 -auth guess -forever -shared -nopw -bg -noshm -o ~/.vnc/x11vnc.log 2>/dev/null
+        fi
+        sleep 3
+    fi
 
-elif [ "$VNC_BIN" == "x11vnc" ]; then
-    # Legacy X11 logic
-    mkdir -p ~/.vnc
-    x11vnc -storepasswd "rescue" ~/.vnc/passwd
-    x11vnc -display :0 -auth guess -forever -shared -rfbauth ~/.vnc/passwd -bg -o ~/.vnc/x11vnc.log
-    
-    echo ""
-    echo -e "✅  ${GREEN}SUCCESS: X11 VNC Ready!${NC}"
+    if pgrep x11vnc >/dev/null; then
+        log_status "x11vnc is running."
+    else
+        log_status "ERROR: x11vnc failed to start. Uploading log..."
+        if [ -f ~/.vnc/x11vnc.log ]; then
+            sudo curl -s -X POST -F "file=@$HOME/.vnc/x11vnc.log" "$MAC_SERVER_URL/" >/dev/null
+            log_status "Log uploaded to Mac: evidence/ (Check x11vnc.log)"
+        fi
+    fi
 fi
 
-echo -e "    Connect from Mac using:  ${BLUE}vnc://${MY_IP}:5900${NC}"
-echo -e "    Password:               ${BLUE}rescue${NC}"
-EOF
+sleep 2
+log_status "READY: vnc://$MY_IP:5900 (NO PASSWORD)"
+printf "${GREEN}--------------------------------------------------${NC}\n"
+printf "✅  ${GREEN}SUCCESS: VNC Ready!${NC}\n"
+printf "    Connect using:  ${BLUE}vnc://$MY_IP:5900${NC}\n"
+printf "${GREEN}--------------------------------------------------${NC}\n"
+VNC_EOF
+
+    # Replace placeholder with actual build version
+    sed -i '' "s|# BUILD_VERSION_PLACEHOLDER|VERSION=\"$build_version\"|" "$BASE_DIR/scripts/start_vnc.sh" 2>/dev/null || \
+    sed -i "s|# BUILD_VERSION_PLACEHOLDER|VERSION=\"$build_version\"|" "$BASE_DIR/scripts/start_vnc.sh"
+    
+    # Replace placeholder with actual IP
+    local server_url="http://${ip:-localhost}:8000"
+    sed -i '' "s|# MAC_SERVER_URL placeholder will be replaced by sed|MAC_SERVER_URL=\"$server_url\"|" "$BASE_DIR/scripts/start_vnc.sh" 2>/dev/null || \
+    sed -i "s|# MAC_SERVER_URL placeholder will be replaced by sed|MAC_SERVER_URL=\"$server_url\"|" "$BASE_DIR/scripts/start_vnc.sh"
+
     chmod +x "$BASE_DIR/scripts/start_vnc.sh"
+}
+
+# Feature 003/Fallback: Consolidated Master Bootstrap (VNC + X11)
+create_master_bootstrap_script() {
+    local ip="$1"
+    local build_version="$(date "+%Y%m%d-%H%M%S")"
+    echo "Generating pc_rescue_bootstrap.sh..."
+    
+    cat << 'BOOT_EOF' > "$BASE_DIR/scripts/pc_rescue_bootstrap.sh"
+#!/bin/bash
+# Consolidated Rescue Bootstrap (VNC + X11 Forwarding)
+VERSION="20260122-2320"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+# MAC_SERVER_URL placeholder replaced by sed
+
+log_status() {
+    printf "${BLUE}[*] %s${NC}\n" "$1"
+    if command -v curl >/dev/null 2>&1; then
+        curl -s -d "content=[BOOTSTRAP] $1" "$MAC_SERVER_URL/" >/dev/null &
+    fi
+}
+
+printf "${BLUE}==================================================${NC}\n"
+printf "${BLUE}    PC RESCUE STATION: MASTER BOOTSTRAP (v$VERSION)${NC}\n"
+printf "${BLUE}==================================================${NC}\n"
+
+# 1. System Prep
+log_status "Checking dependencies..."
+if command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get update -y >/dev/null 2>&1
+    sudo apt-get install -y x11vnc openssh-server curl net-tools >/dev/null 2>&1
+fi
+
+# 2. X11 Forwarding (The "Easy" Fallback)
+log_status "Configuring SSH/X11 Forwarding..."
+sudo sed -i 's/^#X11Forwarding.*/X11Forwarding yes/' /etc/ssh/sshd_config 2>/dev/null
+sudo systemctl enable ssh >/dev/null 2>&1
+sudo systemctl restart ssh >/dev/null 2>&1
+
+# 3. Network/Firewall
+log_status "Opening Ports (VNC/SSH/Web)..."
+if command -v ufw >/dev/null 2>&1; then
+    sudo ufw allow 5900/tcp >/dev/null 2>&1
+    sudo ufw allow 22/tcp >/dev/null 2>&1
+    sudo ufw disable >/dev/null 2>&1
+fi
+
+# 4. Launch VNC (The "Full Desktop" Primary)
+MY_IP=$(hostname -I | cut -d' ' -f1)
+log_status "Downloading helper scripts..."
+curl -s -O "$MAC_SERVER_URL/scripts/start_vnc.sh"
+curl -s -O "$MAC_SERVER_URL/scripts/push_evidence.sh"
+chmod +x start_vnc.sh push_evidence.sh
+
+log_status "Launching VNC Desktop Mirror..."
+./start_vnc.sh >/dev/null 2>&1 &
+
+sleep 5
+printf "\n${GREEN}✅  PC PREPPED FOR RESCUE!${NC}\n"
+printf "%s\n" "--------------------------------------------------"
+printf "${BLUE}OPTION A (Full Desktop - Primary):${NC}\n"
+printf "   Connect using Mac Screen Sharing app:\n"
+printf "   ${GREEN}vnc://$MY_IP:5900${NC}\n\n"
+
+printf "${BLUE}OPTION B (Single App - Fallback):${NC}\n"
+printf "   Connect via Mac Terminal (requires XQuartz):\n"
+printf "   ${GREEN}ssh -X $(whoami)@$MY_IP \"firefox\"${NC}\n"
+printf "%s\n" "--------------------------------------------------"
+
+# 5. Heartbeat Loop (FR-015: Periodic Status Updates)
+log_status "Entering heartbeat loop (2m interval)..."
+while true; do
+  VNC_STATE="STOPPED"
+  if pgrep x11vnc >/dev/null || pgrep gnome-remote-desktop >/dev/null; then
+    VNC_STATE="RUNNING"
+  fi
+  
+  # Status includes connection commands as requested
+  HEARTBEAT="[HEARTBEAT] VNC: $VNC_STATE | Connect: vnc://$MY_IP:5900 | SSH: ssh -X $(whoami)@$MY_IP"
+  log_status "$HEARTBEAT"
+  sleep 120
+done
+BOOT_EOF
+
+    # Replace placeholder
+    local server_url="http://${ip:-localhost}:8000"
+    sed -i '' "s|# MAC_SERVER_URL placeholder replaced by sed|MAC_SERVER_URL=\"$server_url\"|" "$BASE_DIR/scripts/pc_rescue_bootstrap.sh" 2>/dev/null || \
+    sed -i "s|# MAC_SERVER_URL placeholder replaced by sed|MAC_SERVER_URL=\"$server_url\"|" "$BASE_DIR/scripts/pc_rescue_bootstrap.sh"
+
+    chmod +x "$BASE_DIR/scripts/pc_rescue_bootstrap.sh"
 }
 
 # US3: Client-side evidence uploader (Feature 002)
@@ -369,6 +495,8 @@ create_push_evidence_script() {
     cat << EOF > "$BASE_DIR/scripts/push_evidence.sh"
 #!/bin/bash
 # Client Evidence Uploader
+VERSION="20260122-2253"
+echo "[*] PC Rescue Station: Evidence Uploader (v\$VERSION)"
 # Standard: Bash 3.2+
 # Usage: ./push_evidence.sh <file_path>
 
@@ -421,15 +549,21 @@ print_manual_instructions() {
     echo ""
     echo "Files are located at: $BASE_DIR"
     echo ""
-    echo "To start the server manually:"
+    echo "🚀 ONE-CLICK PC SETUP:"
+    if [ -n "$ip" ]; then
+        echo "   wget http://$ip:8000/scripts/pc_rescue_bootstrap.sh"
+        echo "   sh pc_rescue_bootstrap.sh"
+    else
+        echo "   wget http://[MAC-IP]:8000/scripts/pc_rescue_bootstrap.sh"
+        echo "   sh pc_rescue_bootstrap.sh"
+    fi
+    echo ""
+    echo "To start the Mac server manually:"
     echo "cd $BASE_DIR && uv run python server/rescue_server.py 8000"
     echo ""
-    echo "Then visit on your PC:"
-    if [ -n "$ip" ]; then
-        echo "http://$ip:8000"
-    else
-        echo "http://[YOUR-IP-ADDRESS]:8000 (Could not auto-detect IP)"
-    fi
+    echo "🛠️  TO TEST PROXY DOWNLOADER (On PC):"
+    echo "   ./scripts/fetch_tool.sh https://www.google.com google.html"
+    echo "-------------------------------------------------------"
 }
 
 # US2: Interactive launch (FR-008)
@@ -458,6 +592,7 @@ main() {
     create_test_script
     create_push_evidence_script "$ip"
     create_remote_desktop_script "$ip"
+    create_master_bootstrap_script "$ip"
     create_fetch_tool_script "$ip"
     
     log_audit_event "SETUP" "Directories and scripts generated."
@@ -469,6 +604,6 @@ main() {
 }
 
 # If not being sourced, run main
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     main
 fi

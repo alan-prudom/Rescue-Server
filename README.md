@@ -23,7 +23,10 @@ For detailed instructions and examples, see the **[USER_MANUAL.md](USER_MANUAL.m
 
 - **File Delivery**: Serve scripts, drivers, and manuals to the PC.
 - **Evidence Uplink**: Upload logs and screenshots from the PC to the Mac.
-- **Instant Paste**: browser-based text sharing for quick log analysis.
+- **One-Click Rescue**: Consolidated bootstrap script for instant PC prep.
+- **VNC Remote Desktop**: Automatic GUI remote control (optimized for Mac Screen Sharing).
+- **Heartbeat Monitoring**: Real-time PC status updates in the Mac console.
+- **Instant Paste**: Browser-based text sharing for quick log analysis.
 - **Audit Ready**: Automatic Git versioning and append-only logging.
 
 ## License

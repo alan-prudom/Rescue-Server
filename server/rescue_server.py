@@ -127,6 +127,7 @@ class RescueHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 
                 if 'content' in params:
                     text_content = params['content'][0]
+                    print(f"[*] Incoming Status: {text_content}")
                     note_filename = f"{timestamp}_paste.txt"
                     
                     with open(evidence_dir / note_filename, "w") as f:
