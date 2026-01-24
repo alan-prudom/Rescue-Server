@@ -1,0 +1,182 @@
+<head>
+    <meta charset="UTF-8">
+    <title>Rescue Command Trace</title>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --pre-bg: #f6f8fa;
+            --text-color: #24292f;
+            --accent-color: #0969da;
+            --border-color: #d0d7de;
+            --header-bg: #f6f8fa;
+            --success-color: #1a7f37;
+            --warning-color: #9a6700;
+        }
+
+        [data-theme='dark'] {
+            --bg-color: #0d1117;
+            --pre-bg: #161b22;
+            --text-color: #c9d1d9;
+            --accent-color: #58a6ff;
+            --border-color: #30363d;
+            --header-bg: #161b22;
+        }
+
+        body {
+            background: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-badge {
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .status-completed {
+            background: var(--success-color);
+        }
+
+        .status-pending {
+            background: var(--warning-color);
+        }
+
+        pre {
+            background: var(--pre-bg);
+            border: 1px solid var(--border-color);
+            margin: 20px;
+            padding: 20px;
+            border-radius: 6px;
+            flex-grow: 1;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: 'ui-monospace', monospace;
+            font-size: 13px;
+        }
+
+        .confirm-bar {
+            background: #fff8c5;
+            border: 1px solid #d4a72c;
+            margin: 0 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        [data-theme='dark'] .confirm-bar {
+            background: #382a00;
+            border-color: #846000;
+            color: #e3b341;
+        }
+
+        .btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 4px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>🚨 Rescue Command Trace</h1>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="theme-toggle" id="theme-btn">🌓 Toggle Theme</button>
+            <div id="status-badge" class="status-badge">PENDING</div>
+        </div>
+    </div>
+
+    <!-- Confirmation Banner (Shown only in PENDING state) -->
+    <div id="confirm-box" class="confirm-bar" style="display:none;">
+        <div><strong>⚠️ Security:</strong> Please review the script below before execution.</div>
+        <button class="btn" onclick="confirmExec()">START EXECUTION</button>
+    </div>
+
+    <pre id="output-box">{{COMMAND_OUTPUT}}</pre>
+
+    <div class="footer" style="text-align: center; padding: 10px;">
+        <button class="btn" onclick="window.close();">Dismiss</button>
+        <div style="font-size: 0.7rem; color: #6e7781; margin-top: 5px;">PC Local Time: {{TIMESTAMP}}</div>
+    </div>
+
+    <script>
+        const STATUS = "{{STATUS}}"; // Injected by renderer: PENDING, EXECUTING, or COMPLETED
+        const badge = document.getElementById('status-badge');
+        const confirmBox = document.getElementById('confirm-box');
+        
+        badge.innerText = STATUS;
+        badge.className = "status-badge status-" + STATUS.toLowerCase();
+        
+        if (STATUS === "PENDING") {
+            confirmBox.style.display = "flex";
+        }
+
+        async function confirmExec() {
+            try {
+                badge.innerText = "EXECUTING...";
+                confirmBox.innerHTML = "<div>⏳ Running script... results will appear here automatically.</div>";
+                // Signal the local handshake server
+                await fetch('http://localhost:8001/confirm');
+                // Start polling for the refresh
+                setTimeout(() => location.reload(), 2000);
+            } catch (e) {
+                alert("Agent connection failed. Check if bootstrap is running.");
+            }
+        }
+
+        // Auto-refresh if we are waiting for an executing script
+        if (STATUS === "EXECUTING") {
+            setTimeout(() => location.reload(), 2000);
+        }
+
+        // Theme management
+        const btn = document.getElementById('theme-btn');
+        if (localStorage.getItem('theme') === 'dark') document.body.setAttribute('data-theme', 'dark');
+        btn.addEventListener('click', () => {
+            if (document.body.hasAttribute('data-theme')) {
+                document.body.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.body.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        });
+
+        const box = document.getElementById('output-box');
+        box.scrollTop = box.scrollHeight;
+    </script>
+</body>

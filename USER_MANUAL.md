@@ -88,6 +88,17 @@ Once the bootstrap is complete (or if you run `./scripts/start_vnc.sh` manually)
 The PC bootstrap script includes a real-time monitor that sends periodic status updates to the Mac every 2 minutes. You will see these appear directly in the Mac's terminal running `rescue_server.py`:
 `[*] Incoming Status: [BOOTSTRAP] [HEARTBEAT] VNC: RUNNING | Connect: vnc://...`
 
+### G. VNC Diagnostic Tool
+
+If VNC fails to start or connect, run the diagnostic utility:
+
+```bash
+wget http://[MAC-IP]:8000/scripts/diag_vnc.sh
+bash diag_vnc.sh
+```
+
+This script checks the X Server, display variables, and port availability. It automatically uploads a `vnc_diag.log` to the Mac for review.
+
 ---
 
 ## 4. Managing Evidence (Mac/AI Side)

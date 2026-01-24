@@ -58,11 +58,35 @@ test_log_audit_event() {
     rm -rf "$BASE_DIR"
 }
 
+# Principal III (Test-First): Test the modular template provisioner
+test_provision_template() {
+    echo -n "Running test_provision_template... "
+    local test_base="/tmp/provision-test"
+    local tpl="$test_base/template.txt"
+    local dest="$test_base/result.txt"
+    mkdir -p "$test_base"
+    
+    echo "URL: {{MAC_SERVER_URL}}, IP: {{MAC_IP}}, VERSION: {{VERSION}}" > "$tpl"
+    
+    # Run provisioner (simulating en0 IP 10.0.0.1)
+    provision_template "$tpl" "$dest" "10.0.0.1" "vTEST-123"
+    
+    if grep -q "URL: http://10.0.0.1:8000, IP: 10.0.0.1, VERSION: vTEST-123" "$dest"; then
+        echo "PASS"
+    else
+        echo "FAIL (Placeholder replacement failed)"
+        cat "$dest"
+        exit 1
+    fi
+    rm -rf "$test_base"
+}
+
 # Simple test runner
 run_tests() {
     test_check_git_installed
     test_get_ip_address
     test_log_audit_event
+    test_provision_template
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

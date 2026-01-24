@@ -11,9 +11,7 @@ Provide a "one-click" script on the Mac server that uses the Linux PC's package 
 - [x] Implement distro detection (Debian/Ubuntu/Fedora/Arch/SystemRescue).
 - [x] Implement display server detection (X11 vs Wayland) - *Critical*: VNC often fails on Wayland.
 
-
-
-- [x] Check for existing VNC servers (`x11vnc`, `tigervnc`, `vino`).
+## Phase 2: Dependency Management
 - [x] Implement package installation fallback (`apt-get install`, `dnf install`, `pacman -S`).
 - [x] Handle "offline mode" (warn user if internet is required but missing).
 
@@ -25,3 +23,9 @@ Provide a "one-click" script on the Mac server that uses the Linux PC's package 
 
 - [x] Add `boot_vnc.sh` to the main setup script generation list.
 - [x] Update `system_help.html` with VNC instructions.
+
+## Phase 5: Diagnostics & Hardening (Live CD Focus)
+- [x] Implement `vnc_stderr.log` capture for hidden startup errors.
+- [x] Add automated log upload on failure (Feature 002 integration).
+- [x] Implement multi-path Xauthority search (GDM/LightDM/generic).
+- [x] Add `noxdamage` and `noxfixes` flags for Screen Sharing compatibility.

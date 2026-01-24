@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Rescue Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background: #f0f2f5;
+            color: #333;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #1a1a1a;
+            border-bottom: 2px solid #007aff;
+            padding-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .help-link {
+            font-size: 0.9rem;
+            background: #34c759;
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            text-decoration: none;
+            font-weight: normal;
+        }
+
+        .help-link:hover {
+            opacity: 0.8;
+        }
+
+        h2 {
+            margin-top: 2rem;
+            font-size: 1.25rem;
+            color: #444;
+            display: flex;
+            align-items: center;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            margin: 0.5rem 0;
+            padding: 0.75rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+            transition: transform 0.1s;
+        }
+
+        li:hover {
+            transform: translateX(5px);
+            border-color: #007aff;
+        }
+
+        a {
+            text-decoration: none;
+            color: #007aff;
+            font-weight: 600;
+            display: block;
+        }
+
+        .ip-placeholder {
+            background: #fff3cd;
+            color: #856404;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 2rem;
+            border-left: 4px solid #ffc107;
+        }
+
+        code {
+            background: rgba(0, 0, 0, 0.05);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>
+            <span>🚑 PC Rescue Station</span>
+            <a href="manuals/system_help.html" class="help-link">❓ Help Guide</a>
+        </h1>
+
+        <div class="ip-placeholder">
+            <strong>💡 Tip:</strong> To download a file to the PC terminal, type:<br>
+            <code>wget http://{{MAC_IP}}:8000/scripts/filename.sh</code>
+            <div style="margin-top: 10px; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 5px;">
+                <a href="/feed/" style="color: #0969da; font-weight: bold; display: inline-block;">📺 Open Live Activity
+                    Feed</a> (Monitor all PCs in real-time)
+            </div>
+        </div>
+
+        <h2>📂 Scripts & Tools</h2>
+        <ul>
+            <li><a href="scripts/">Browse Scripts Directory</a></li>
+            <li><a href="scripts/diag_vnc.sh">🔍 Run VNC Diagnostic</a></li>
+            <li><a href="archive/fetch_tool.sh"
+                    onclick="alert('Run this to use the proxy:\n wget http://'+window.location.host+'/scripts/fetch_tool.sh'); return false;">⬇️
+                    Get Proxy Downloader Tool</a></li>
+        </ul>
+
+        <h2>📚 Manuals & PDFs</h2>
+        <ul>
+            <li><a href="manuals/">Browse Manuals Directory</a></li>
+        </ul>
+
+        <h2>💾 Drivers</h2>
+        <ul>
+            <li><a href="drivers/">Browse Drivers Directory</a></li>
+        </ul>
+
+        <h2>🖼️ Evidence (Uploaded from PC)</h2>
+        <ul>
+            <li><a href="evidence/">Browse Uploaded Evidence</a></li>
+        </ul>
+
+        <h2>📝 Instant Evidence (Paste Logs/Text)</h2>
+        <form action="/" method="POST" enctype="application/x-www-form-urlencoded">
+            <textarea name="content"
+                style="width: 100%; height: 150px; border-radius: 8px; border: 1px solid #ddd; padding: 10px; font-family: monospace;"
+                placeholder="Paste crash logs, command output, or notes here..."></textarea>
+            <button type="submit"
+                style="margin-top: 10px; background: #007aff; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">Save
+                Evidence</button>
+        </form>
+
+        <div style="margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #eee; text-align: center;">
+            <a href="/shutdown" style="color: #ff3b30; font-size: 0.8rem;"
+                onclick="return confirm('Stop the Mac Rescue Server?')">🛑 Stop Mac Server</a>
+        </div>
+    </div>
+
+</body>
+
+</html>
