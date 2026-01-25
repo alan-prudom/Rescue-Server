@@ -23,11 +23,11 @@ if [ -z "$OUTPUT_NAME" ]; then
 fi
 
 echo -e "${BLUE}[*] Requesting: $TARGET_URL${NC}"
-echo "    Via Proxy: http://{{MAC_IP}}:8000/proxy"
+echo "    Via Proxy: http://192.168.1.61:8000/proxy"
 
 # Use curl to hit the proxy endpoint
 if command -v curl >/dev/null 2>&1; then
-    curl -f -L "http://{{MAC_IP}}:8000/proxy?url=$TARGET_URL" -o "$OUTPUT_NAME"
+    curl -f -L "http://192.168.1.61:8000/proxy?url=$TARGET_URL" -o "$OUTPUT_NAME"
     
     if [ $? -eq 0 ]; then
         echo -e "✅  ${GREEN}Download Complete: $OUTPUT_NAME${NC}"
@@ -37,7 +37,7 @@ if command -v curl >/dev/null 2>&1; then
         exit 1
     fi
 elif command -v wget >/dev/null 2>&1; then
-    wget -O "$OUTPUT_NAME" "http://{{MAC_IP}}:8000/proxy?url=$TARGET_URL"
+    wget -O "$OUTPUT_NAME" "http://192.168.1.61:8000/proxy?url=$TARGET_URL"
     
      if [ $? -eq 0 ]; then
         echo -e "✅  ${GREEN}Download Complete: $OUTPUT_NAME${NC}"

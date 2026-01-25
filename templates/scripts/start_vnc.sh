@@ -1,7 +1,7 @@
 #!/bin/bash
 # One-Click VNC Bootstrap
 # Target: macOS Screen Sharing.app
-# VERSION="{{VERSION}}"
+# VERSION="20260124-222524"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -9,7 +9,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # MAC_SERVER_URL set by setup provisioner
-MAC_SERVER_URL="{{MAC_SERVER_URL}}"
+MAC_SERVER_URL="http://192.168.1.8:8000"
 
 log_status() {
     local msg="$1"
@@ -69,16 +69,14 @@ else
     mkdir -p "$HOME/.vnc"
     chmod 700 "$HOME/.vnc"
     
-    # Search multiple common locations for Xauthority
-    POTENTIAL_XAUTH=(
-        "/run/user/$(id -u)/gdm/Xauthority"
-        "/run/user/$(id -u)/Xauthority"
-        "$HOME/.Xauthority"
-        "/var/run/lightdm/root/:0"
-        "/var/lib/gdm/:0.Xauth"
-    )
-    
-    for path in "${POTENTIAL_XAUTH[@]}"; do
+    # Search multiple common locations for Xauthority (POSIX-compliant)
+    XAUTH=""
+    for path in \
+        "/run/user/$(id -u)/gdm/Xauthority" \
+        "/run/user/$(id -u)/Xauthority" \
+        "$HOME/.Xauthority" \
+        "/var/run/lightdm/root/:0" \
+        "/var/lib/gdm/:0.Xauth"; do
         if [ -f "$path" ]; then
             XAUTH="$path"
             # Attempt to make it readable if we have sudo

@@ -137,6 +137,9 @@ create_diagnostic_scripts() {
     echo "Generating diagnostic tools..."
     provision_template "$(dirname "$0")/templates/scripts/diag_vnc.sh" "$BASE_DIR/scripts/diag_vnc.sh" "$ip"
     chmod +x "$BASE_DIR/scripts/diag_vnc.sh"
+    
+    # Provision Python VNC Diagnostic Tool
+    provision_template "$(dirname "$0")/templates/scripts/vnc_diag.py" "$BASE_DIR/scripts/vnc_diag.py" "$ip"
 }
 
 # Phase 5: Smart Sync Helpers

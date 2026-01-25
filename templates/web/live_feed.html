@@ -74,14 +74,19 @@
 
         /* PC Cards Section */
         .cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
             gap: 15px;
             max-height: 40%;
             overflow-y: auto;
+            align-content: flex-start;
         }
 
         .pc-card {
+            flex: 1 1 280px;
+            /* Grow, Shrink, Basis */
+            min-width: 280px;
+            max-width: 400px;
             background: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 8px;
@@ -137,6 +142,58 @@
             background: rgba(0, 0, 0, 0.03);
             padding: 4px;
             border-radius: 4px;
+        }
+
+        /* Context Menu Styles */
+        .context-menu {
+            position: fixed;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            min-width: 180px;
+            padding: 5px 0;
+        }
+
+        .menu-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text-color);
+            transition: background 0.1s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .menu-item:hover {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .menu-divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 5px 0;
+        }
+
+        .menu-label {
+            font-size: 0.7rem;
+            color: #8b949e;
+            padding: 5px 15px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .pc-card {
+            cursor: pointer;
+        }
+
+        .pc-card:hover {
+            border-color: var(--accent-color);
         }
 
         /* Global Log Section */
@@ -223,7 +280,84 @@
         </div>
     </div>
 
+    <!-- Interactive Context Menu -->
+    <div id="ctx-menu" class="context-menu">
+        <div class="menu-label" id="menu-ip-title">PC: 0.0.0.0</div>
+        <div class="menu-item" id="btn-copy">📋 Copy IP Address</div>
+        <div class="menu-divider"></div>
+        <div class="menu-label">Diagnostics</div>
+        <div class="menu-item" id="btn-logs">🔍 Inspect Logs</div>
+        <div class="menu-item" id="btn-instr">📜 View Sent Instructions</div>
+        <div class="menu-item" id="btn-diag">🛠️ Diagnose VNC Link</div>
+        <div class="menu-divider"></div>
+        <div class="menu-label">Remote Access</div>
+        <div class="menu-item" id="btn-vnc-native">🍏 Launch Apple ScreenShare</div>
+        <div class="menu-item" id="btn-vnc-real">💻 Launch RealVNC</div>
+        <div class="menu-item" id="btn-ssh">📟 SSH Terminal (-X)</div>
+    </div>
+
     <script>
+        // Context Menu Logic
+        const menu = document.getElementById('ctx-menu');
+        let activeIP = "";
+
+        function showMenu(e, ip, instrLink, logLink) {
+            e.preventDefault();
+            e.stopPropagation();
+            activeIP = ip;
+            document.getElementById('menu-ip-title').innerText = "PC: " + ip;
+
+            menu.style.display = "flex";
+            menu.style.left = e.clientX + "px";
+            menu.style.top = e.clientY + "px";
+
+            // Bind actions
+            document.getElementById('btn-copy').onclick = () => { navigator.clipboard.writeText(ip); hideMenu(); };
+            document.getElementById('btn-logs').onclick = () => { window.open(logLink, '_blank'); hideMenu(); };
+            document.getElementById('btn-instr').onclick = () => { window.open(instrLink, '_blank'); hideMenu(); };
+
+            // Logic Action: Native macOS Screen Sharing
+            document.getElementById('btn-vnc-native').onclick = () => { window.location.href = `vnc://${ip}:5900`; hideMenu(); };
+
+            // Logic Action: RealVNC specific URI scheme
+            document.getElementById('btn-vnc-real').onclick = () => {
+                window.location.href = `com.realvnc.vncviewer.connect://${ip}`;
+                hideMenu();
+            };
+
+            document.getElementById('btn-ssh').onclick = () => {
+                const cmd = `ssh -X rescue@${ip}`;
+                navigator.clipboard.writeText(cmd).then(() => {
+                    alert(`Command copied to clipboard:\n${cmd}`);
+                });
+                hideMenu();
+            };
+
+            document.getElementById('btn-diag').onclick = () => {
+                const btn = document.getElementById('btn-diag');
+                btn.innerText = "⏳ Running Diagnostic...";
+                btn.style.opacity = "0.5";
+
+                fetch(`/diag_vnc?ip=${activeIP}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        alert(`VNC DIAGNOSTIC RESULT for ${activeIP}:\n\nStatus: ${data.status}\nPort: ${data.port}\n\n${data.log}`);
+                        btn.innerText = "🛠️ Diagnose VNC Link";
+                        btn.style.opacity = "1";
+                        // The next auto-refresh will update the card status
+                    })
+                    .catch(e => {
+                        alert(`Error running diagnostic: ${e}`);
+                        btn.innerText = "🛠️ Diagnose VNC Link";
+                        btn.style.opacity = "1";
+                    });
+                hideMenu();
+            };
+        }
+
+        function hideMenu() { menu.style.display = "none"; }
+        document.addEventListener('click', hideMenu);
+
         // Theme Management
         const themeBtn = document.getElementById('theme-btn');
         const currentTheme = localStorage.getItem('theme') || 'light';
@@ -235,17 +369,59 @@
             localStorage.setItem('theme', theme);
         });
 
-        // Auto-refresh logic
-        let timeLeft = 10;
+        // Auto-refresh logic with Exponential Backoff
+        // Initial delay: 10s. Cap: 150s.
         const timerEl = document.getElementById('update-timer');
 
-        setInterval(() => {
+        let initialTime = 10;
+        let timeLeft = initialTime;
+
+        // Retrieve last backoff state from session storage to persist across reloads
+        // If the page was just reloaded, increase the delay for the NEXT cycle
+        let currentBackoff = parseInt(sessionStorage.getItem('refreshBackoff') || "10");
+
+        // If we just reloaded, it means the previous cycle finished. 
+        // We should start with the *current* backoff value.
+        // However, to mimic "backoff", we should probably double it for the *next* reload 
+        // if we want the user to feel the time increasing. 
+        // But for a dashboard, we usually want it to reset on user interaction or success.
+        // Given the requirement "Exponential backoff for mac server feed refresh", 
+        // we'll double the wait time on each reload until 150s.
+
+        timeLeft = currentBackoff;
+
+        function updateTimer() {
             timeLeft--;
             if (timeLeft <= 0) {
+                // Determine next backoff duration
+                let nextBackoff = currentBackoff * 1.5;
+                if (nextBackoff > 150) nextBackoff = 150;
+
+                // Save it for the next reload
+                sessionStorage.setItem('refreshBackoff', Math.floor(nextBackoff));
+
                 location.reload();
+            } else {
+                timerEl.innerText = `Refreshing in ${timeLeft.toFixed(0)}s...`;
             }
-            timerEl.innerText = `Refreshing in ${timeLeft}s...`;
-        }, 1000);
+        }
+
+        // Reset backoff on ANY user interaction (click/mousemove)
+        // This ensures active users get fast updates (10s), while idle dashboards back off.
+        function resetBackoff() {
+            if (currentBackoff > 10) {
+                sessionStorage.setItem('refreshBackoff', "10");
+                // Optional: visual cue or immediate reload? 
+                // For now, next reload will be fast. 
+                // Let's just reset the storage so the *next* cycle starts at 10.
+            }
+        }
+
+        document.addEventListener('mousemove', resetBackoff);
+        document.addEventListener('click', resetBackoff);
+        document.addEventListener('keydown', resetBackoff);
+
+        setInterval(updateTimer, 1000);
 
         // Auto-scroll log to bottom
         const consoleEl = document.getElementById('console');

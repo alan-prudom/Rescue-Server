@@ -105,9 +105,18 @@
             <a href="manuals/system_help.html" class="help-link">❓ Help Guide</a>
         </h1>
 
+        <div
+            style="text-align: center; margin: 2rem 0; padding: 1.5rem; background: #e7f3ff; border-radius: 12px; border: 2px dashed #007aff;">
+            <div
+                style="font-size: 0.9rem; text-transform: uppercase; color: #555; letter-spacing: 1px; margin-bottom: 5px;">
+                This PC Identity:</div>
+            <div style="font-size: 2.5rem; font-weight: 800; color: #1a1a1a; font-family: monospace;">{{PC_IP}}</div>
+            <div style="font-size: 1.2rem; color: #007aff; margin-top: 5px; font-weight: 500;">{{PC_NAME}}</div>
+        </div>
+
         <div class="ip-placeholder">
             <strong>💡 Tip:</strong> To download a file to the PC terminal, type:<br>
-            <code>wget http://{{MAC_IP}}:8000/scripts/filename.sh</code>
+            <code>wget http://192.168.1.61:8000/scripts/filename.sh</code>
             <div style="margin-top: 10px; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 5px;">
                 <a href="/feed/" style="color: #0969da; font-weight: bold; display: inline-block;">📺 Open Live Activity
                     Feed</a> (Monitor all PCs in real-time)

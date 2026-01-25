@@ -59,9 +59,24 @@ class RescueHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._handle_manifest()
             return
             
+        # Case: Index with dynamic IP
+        if self.path == '/' or self.path == '/index.html':
+            self._handle_index()
+            return
+
         # Feature: Live Activity Feed (US: Real-time monitoring)
         if self.path == '/feed' or self.path == '/feed/':
             self._handle_live_feed()
+            return
+
+        # Case: VNC Diagnostic Action
+        if self.path.startswith('/diag_vnc'):
+            self._handle_diag_vnc()
+            return
+
+        # Case: Instruction Library Page
+        if self.path == '/instructions' or self.path == '/instructions/':
+            self._handle_instructions()
             return
 
         super().do_GET()
@@ -85,36 +100,61 @@ class RescueHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 last_msg = "Unknown"
                 last_time = "Never"
                 vnc_status = "STOPPED"
+                tailscale_ip = "N/A"
                 
+                # Try to get tailscale_ip from most recent capabilities.json
+                evidence_dir = Path("evidence") / ip_addr
+                if evidence_dir.exists():
+                    cap_files = sorted(list(evidence_dir.glob("*_capabilities.json")), reverse=True)
+                    if cap_files:
+                        try:
+                            import json
+                            with open(cap_files[0], "r") as fcap:
+                                cap_data = json.load(fcap)
+                                tailscale_ip = cap_data.get("network", {}).get("tailscale_ip", "N/A")
+                        except:
+                            pass
+
                 with open(log_file, "r") as f:
                     lines = f.readlines()
                     if lines:
-                        # Extract PC Card info from last heartbeat
+                        # Extract PC Card info from last messages
+                        latest_bootstrap_line = None
                         for line in reversed(lines):
-                            if "[HEARTBEAT]" in line:
+                            if "[BOOTSTRAP]" in line:
+                                latest_bootstrap_line = line
+                                if not last_msg or last_msg == "Unknown":
+                                    last_msg = line.split("]", 1)[1].strip()
+                                    last_time = line.split("]", 1)[0].strip("[")
+                            
+                            if "[HEARTBEAT]" in line and last_msg == "Unknown":
                                 last_msg = line.split("]", 1)[1].strip()
                                 last_time = line.split("]", 1)[0].strip("[")
                                 if "VNC: RUNNING" in line: vnc_status = "RUNNING"
-                                break
-                            elif "[BOOTSTRAP]" in line:
+                            
+                            if "[CAPABILITIES]" in line and last_msg == "Unknown":
                                 last_msg = line.split("]", 1)[1].strip()
                                 last_time = line.split("]", 1)[0].strip("[")
-                                break
-                        
-                        # Add to scrolling log (last 50 global entries)
-                        for line in lines[-10:]:
+
+                        # Add to scrolling log (last 15 entries for readability)
+                        for line in lines[-15:]:
                             feed_content.append(f"[{ip_addr}] {line}")
                 
-                # Generate Card HTML
+                # Check for existing instruction files for this IP
+                instr_link = f"/evidence/{ip_addr}"
+                log_link = f"/audit_logs/{ip_addr}/client_activity.log"
+                
+                # Generate Card HTML with Metadata
                 status_class = "status-running" if vnc_status == "RUNNING" else "status-stopped"
                 card = f"""
-                <div class="pc-card">
+                <div class="pc-card" onclick="showMenu(event, '{ip_addr}', '{instr_link}', '{log_link}')">
                     <div class="pc-card-header">
                         <span class="pc-ip">{ip_addr}</span>
                         <span class="vnc-badge {status_class}">VNC: {vnc_status}</span>
                     </div>
                     <div class="pc-card-body">
                         <div class="pc-last-seen">Last: {last_time}</div>
+                        <div class="pc-tailscale">TS: {tailscale_ip}</div>
                         <div class="pc-activity">{last_msg}</div>
                     </div>
                 </div>
@@ -136,8 +176,134 @@ class RescueHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         else:
             html = f"<html><body><h1>Cards</h1>{cards_html}<h1>Log</h1><pre>{log_html}</pre></body></html>"
         
-        self.wfile.write(html.encode('utf-8'))
+        try:
+            self.wfile.write(html.encode('utf-8'))
+        except BrokenPipeError:
+            # Client disconnected before we finished writing
+            pass
+        except Exception as e:
+            print(f"[!] Error writing feed response: {e}")
 
+    def _handle_index(self):
+        """Serves index.html with dynamic IP and PC name."""
+        pc_ip = self.client_address[0]
+        if pc_ip == '::1': pc_ip = '127.0.0.1'
+        
+        # Try to get unique name
+        import socket
+        try:
+            pc_name = socket.gethostbyaddr(pc_ip)[0]
+        except:
+            pc_name = "Unknown Device"
+
+        # Get Mac IP
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("8.8.8.8", 80))
+            mac_ip = s.getsockname()[0]
+        except:
+            mac_ip = "localhost"
+        finally:
+            s.close()
+
+        template_path = Path("templates/web/index.html")
+        if template_path.exists():
+            with open(template_path, "r") as f:
+                html = f.read()
+                html = html.replace("{{MAC_IP}}", mac_ip)
+                html = html.replace("{{PC_IP}}", pc_ip)
+                html = html.replace("{{PC_NAME}}", pc_name)
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(html.encode('utf-8'))
+        else:
+            self.send_error(404, "index.html template missing")
+
+    def _handle_diag_vnc(self):
+        """Runs the Python VNC diagnostic tool and updates the live feed."""
+        from urllib.parse import urlparse, parse_qs
+        import subprocess
+        
+        query_components = parse_qs(urlparse(self.path).query)
+        target_ip = query_components.get('ip', [None])[0]
+        
+        if not target_ip:
+            self.send_error(400, "Missing IP parameter")
+            return
+
+        print(f"[*] Running VNC Diagnostic for {target_ip}...")
+        
+        # Run the probe
+        try:
+            cmd = ["python3", "scripts/vnc_diag.py", target_ip]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+            output = result.stdout
+            
+            # Parse port from output "RESULT: 5901 | ..."
+            final_port = "5900"
+            if "RESULT:" in output and "FAIL" not in output:
+                res_line = [l for l in output.split("\n") if "RESULT:" in l][0]
+                final_port = res_line.split(":")[1].split("|")[0].strip()
+                status = "RUNNING"
+            else:
+                status = "STOPPED"
+
+            # Log to client activity log
+            audit_dir = self._get_client_dir("audit_logs")
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            msg = f"[VNC-DIAG] VNC: {status} | Port: {final_port} | Details: {output.strip().replace('\n', ' ')}"
+            
+            with open(audit_dir / "client_activity.log", "a") as al:
+                al.write(f"[{timestamp}] {msg}\n")
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            import json
+            self.wfile.write(json.dumps({"status": status, "port": final_port, "log": msg}).encode())
+
+        except Exception as e:
+            self.send_error(500, str(e))
+
+    def _handle_instructions(self):
+        """Serves the instruction library page with dynamic IP and PC name."""
+        pc_ip = self.client_address[0]
+        if pc_ip == '::1': pc_ip = '127.0.0.1'
+        
+        # Try to get unique name
+        import socket
+        try:
+            pc_name = socket.gethostbyaddr(pc_ip)[0]
+        except:
+            pc_name = "Unknown Device"
+
+        # Get Mac IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("8.8.8.8", 80))
+            mac_ip = s.getsockname()[0]
+        except:
+            mac_ip = "localhost"
+        finally:
+            s.close()
+
+        template_path = Path("templates/web/instructions.html")
+        if template_path.exists():
+            with open(template_path, "r") as f:
+                html = f.read()
+                html = html.replace("{{MAC_IP}}", mac_ip)
+                html = html.replace("{{PC_IP}}", pc_ip)
+                html = html.replace("{{PC_NAME}}", pc_name)
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(html.encode('utf-8'))
+        else:
+            self.send_error(404, "instructions.html template missing")
 
     def _handle_manifest(self):
         """Generates a JSON manifest of all manageable scripts and templates."""
@@ -287,9 +453,16 @@ class RescueHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                         text_content = params['content'][0]
                         print(f"[*] Incoming Status ({self.client_address[0]}): {text_content}")
                         
+                        # Feature: Consecutive Bootstrap Overwrite (US: Fresh session detection)
+                        # If a new bootstrap run starts, truncate the audit log to avoid massive history accumulation.
+                        write_mode = "a"
+                        if text_content.startswith("[BOOTSTRAP]") and "Checking dependencies" in text_content:
+                            print(f"[*] New bootstrap detected for {self.client_address[0]}. Truncating log.")
+                            write_mode = "w"
+
                         # Log to IP-specific audit log
                         audit_log = audit_dir / "client_activity.log"
-                        with open(audit_log, "a") as al:
+                        with open(audit_log, write_mode) as al:
                             al.write(f"[{timestamp}] {text_content}\n")
 
                         note_filename = f"{timestamp}_paste.txt"

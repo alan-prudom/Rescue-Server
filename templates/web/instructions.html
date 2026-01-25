@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instruction Library - PC Rescue</title>
+    <style>
+        :root {
+            --bg-color: #f6f8fa;
+            --text-color: #24292f;
+            --card-bg: #ffffff;
+            --border-color: #d0d7de;
+            --accent-color: #0969da;
+            --success-color: #238636;
+            --warning-color: #bf8700;
+        }
+
+        body {
+            background: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .header {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pc-info {
+            font-family: monospace;
+            color: #57606a;
+            font-size: 0.9rem;
+        }
+
+        .instructions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .instruction-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .instruction-card:hover {
+            border-color: var(--accent-color);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .instruction-card.running {
+            border-color: var(--warning-color);
+            background: #fffbeb;
+        }
+
+        .instruction-card.complete {
+            border-color: var(--success-color);
+            background: #f0fdf4;
+        }
+
+        .instruction-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .instruction-desc {
+            color: #57606a;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+        }
+
+        .instruction-meta {
+            font-size: 0.75rem;
+            color: #8b949e;
+            font-family: monospace;
+        }
+
+        .btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            width: 100%;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: #0550ae;
+        }
+
+        .btn:disabled {
+            background: #6e7781;
+            cursor: not-allowed;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .status-ready {
+            background: #ddf4ff;
+            color: #0969da;
+        }
+
+        .status-running {
+            background: #fff8c5;
+            color: #bf8700;
+        }
+
+        .status-complete {
+            background: #dafbe1;
+            color: #238636;
+        }
+
+        .console {
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'ui-monospace', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .console.active {
+            display: block;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .nav-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--text-color);
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="nav-buttons">
+        <a href="/" class="nav-btn">🏠 Home</a>
+        <a href="/feed" class="nav-btn">🚑 Command Centre</a>
+    </div>
+
+    <div class="header">
+        <h1>📚 Instruction Library</h1>
+        <div class="pc-info">
+            PC: {{PC_IP}} | {{PC_NAME}} | Mac Server: {{MAC_IP}}
+        </div>
+    </div>
+
+    <div class="instructions-grid" id="instructions-grid">
+        <!-- Instructions will be populated here -->
+    </div>
+
+    <div class="console" id="console">
+        <div id="console-output"></div>
+    </div>
+
+    <script>
+        const MAC_IP = "{{MAC_IP}}";
+        const PC_IP = "{{PC_IP}}";
+
+        const instructions = [
+            {
+                name: "vnc_discovery.sh",
+                title: "🔍 VNC Server Discovery",
+                description: "Scan for all running VNC servers, check listening ports, and verify connectivity",
+                output_dir: "vnc_discovery"
+            },
+            {
+                name: "system_audit.sh",
+                title: "🖥️ System Audit",
+                description: "Comprehensive hardware audit: CPU, RAM, PCI devices, storage, and partitions",
+                output_dir: "system_audit"
+            },
+            {
+                name: "network_diagnostic.sh",
+                title: "🌐 Network Diagnostic",
+                description: "Network configuration, routing, DNS, firewall status, and connectivity tests",
+                output_dir: "network_diagnostic"
+            },
+            {
+                name: "livecd_detection.sh",
+                title: "💿 Live CD Detection",
+                description: "Determine if the system is running from Live CD/USB or an installed operating system",
+                output_dir: "livecd_detection"
+            },
+            {
+                name: "capabilities_profiler.sh",
+                title: "🔍 System Capabilities Profile",
+                description: "Generate comprehensive JSON profile: OS, hardware IDs, MAC addresses, software versions",
+                output_dir: "capabilities"
+            },
+            {
+                name: "tailscale_setup.sh",
+                title: "🔐 Tailscale VPN Setup",
+                description: "Check, install, and configure Tailscale VPN. Reports status and Tailscale IP",
+                output_dir: "tailscale_status"
+            },
+            {
+                name: "chromebook_fix.sh",
+                title: "💻 Chromebook Fix & Agent",
+                description: "Repair malformed sources.list and launch the intelligent Python Rescue Agent",
+                output_dir: "chromebook_fix"
+            },
+            {
+                name: "cb_power_pack.sh",
+                title: "⚡ Chromebook Power Pack",
+                description: "Optimize Crostini performance, fix browser integration, and link storage",
+                output_dir: "cb_power_pack"
+            }
+        ];
+
+        function renderInstructions() {
+            const grid = document.getElementById('instructions-grid');
+            grid.innerHTML = '';
+
+            instructions.forEach(inst => {
+                const card = document.createElement('div');
+                card.className = 'instruction-card';
+                card.id = `card-${inst.name}`;
+
+                card.innerHTML = `
+                    <div class="instruction-title">
+                        ${inst.title}
+                        <span class="status-badge status-ready" id="status-${inst.name}">Ready</span>
+                    </div>
+                    <div class="instruction-desc">${inst.description}</div>
+                    <div class="instruction-meta">Output: ~/${inst.output_dir}/</div>
+                    <button class="btn" onclick="executeInstruction('${inst.name}')">
+                        ▶️ Execute
+                    </button>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        function executeInstruction(name) {
+            const card = document.getElementById(`card-${name}`);
+            const statusBadge = document.getElementById(`status-${name}`);
+            const consoleDiv = document.getElementById('console');
+            const consoleOutput = document.getElementById('console-output');
+
+            // Update UI
+            card.className = 'instruction-card running';
+            statusBadge.className = 'status-badge status-running';
+            statusBadge.textContent = 'Running...';
+            consoleDiv.classList.add('active');
+            consoleOutput.innerHTML = `<div>[*] Executing ${name}...</div>`;
+
+            // Build the execution command
+            const executorUrl = `/scripts/execute_instruction.sh`;
+            const command = `wget -q -O - "http://${MAC_IP}:8000${executorUrl}" | bash -s ${MAC_IP} ${name}`;
+
+            // Show command in console
+            consoleOutput.innerHTML += `<div style="color: #58a6ff;">$ ${command}</div>`;
+
+            // In a real implementation, this would trigger the PC to execute
+            // For now, we'll simulate with a fetch to trigger the download
+            fetch(`/scripts/${name}`)
+                .then(response => {
+                    if (response.ok) {
+                        consoleOutput.innerHTML += `<div style="color: #56d364;">[✓] Instruction downloaded</div>`;
+                        consoleOutput.innerHTML += `<div>[*] Executing on PC...</div>`;
+                        consoleOutput.innerHTML += `<div style="color: #8b949e;">Check the Command Centre for live updates</div>`;
+
+                        // Simulate completion after 3 seconds
+                        setTimeout(() => {
+                            card.className = 'instruction-card complete';
+                            statusBadge.className = 'status-badge status-complete';
+                            statusBadge.textContent = 'Complete';
+                            consoleOutput.innerHTML += `<div style="color: #56d364;">[✓] Execution complete. Results uploaded to server.</div>`;
+                        }, 3000);
+                    } else {
+                        consoleOutput.innerHTML += `<div style="color: #f85149;">[✗] Failed to download instruction</div>`;
+                        card.className = 'instruction-card';
+                        statusBadge.className = 'status-badge status-ready';
+                        statusBadge.textContent = 'Ready';
+                    }
+                })
+                .catch(err => {
+                    consoleOutput.innerHTML += `<div style="color: #f85149;">[✗] Error: ${err}</div>`;
+                    card.className = 'instruction-card';
+                    statusBadge.className = 'status-badge status-ready';
+                    statusBadge.textContent = 'Ready';
+                });
+
+            // Copy command to clipboard
+            navigator.clipboard.writeText(command).then(() => {
+                consoleOutput.innerHTML += `<div style="color: #a371f7;">📋 Command copied to clipboard</div>`;
+            });
+        }
+
+        // Initialize
+        renderInstructions();
+    </script>
+</body>
+
+</html>

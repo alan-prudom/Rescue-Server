@@ -1,6 +1,6 @@
 #!/bin/bash
 # Consolidated Rescue Bootstrap (VNC + X11 Forwarding)
-VERSION="{{VERSION}}"
+VERSION="20260123-1123"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -8,7 +8,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # MAC_SERVER_URL set by setup provisioner
-MAC_SERVER_URL="{{MAC_SERVER_URL}}"
+MAC_SERVER_URL="http://192.168.1.61:8000"
 
 log_status() {
     printf "${BLUE}[*] %s${NC}\n" "$1"
@@ -23,11 +23,16 @@ printf "${BLUE}==================================================${NC}\n"
 printf "${BLUE}    PC RESCUE STATION: MASTER BOOTSTRAP (v$VERSION)${NC}\n"
 printf "${BLUE}==================================================${NC}\n"
 
+# 0. Lock Buster (Required for Chromebook/Crostini stability)
+printf "${BLUE}[*] Breaking package manager locks...${NC}\n"
+sudo killall apt apt-get dpkg 2>/dev/null || true
+sudo rm -f /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock 2>/dev/null
+sudo dpkg --configure -a 2>/dev/null
+
 # 1. System Prep
 log_status "Checking dependencies (x11vnc, ssh, curl)..."
 if command -v apt-get >/dev/null 2>&1; then
-    # Kill background updates and break locks (Required for Ubuntu Live)
-    sudo killall apt apt-get 2>/dev/null || true
+    # Break locks again just in case background task started
     sudo rm -f /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock 2>/dev/null
     
     # Enable universe repository (Required for x11vnc on Ubuntu Live)
@@ -82,6 +87,20 @@ chmod +x start_vnc.sh push_evidence.sh 2>/dev/null
 log_status "Launching VNC Desktop Mirror..."
 ./start_vnc.sh >/dev/null 2>&1 &
 
+# 4.5. Generate and Upload Capabilities Profile (NEW)
+log_status "Generating system capabilities profile..."
+if command -v curl >/dev/null 2>&1; then
+    curl -s -O "$MAC_SERVER_URL/scripts/capabilities_profiler.sh"
+elif command -v wget >/dev/null 2>&1; then
+    wget -q "$MAC_SERVER_URL/scripts/capabilities_profiler.sh" -O capabilities_profiler.sh
+fi
+
+if [ -f "capabilities_profiler.sh" ]; then
+    chmod +x capabilities_profiler.sh
+    MAC_IP_ONLY=$(echo "$MAC_SERVER_URL" | sed 's|http://||' | sed 's|:.*||')
+    ./capabilities_profiler.sh "$MAC_IP_ONLY" >/dev/null 2>&1 &
+fi
+
 sleep 5
 printf "\n${GREEN}✅  PC PREPPED FOR RESCUE!${NC}\n"
 printf "%s\n" "--------------------------------------------------"
@@ -91,10 +110,29 @@ printf "   ${GREEN}vnc://$MY_IP:5900${NC}\n\n"
 
 printf "${BLUE}OPTION B (Single App - Fallback):${NC}\n"
 printf "   Connect via Mac Terminal (requires XQuartz):\n"
-printf "   ${GREEN}ssh -X $(whoami)@$MY_IP \"firefox\"${NC}\n"
+printf "${BLUE}OPTION C (Chromebook Smoother Experience):${NC}\n"
+printf "   Run the Python-based intelligent agent:\n"
+printf "   ${GREEN}wget -q -O - http://$MY_IP:8000/scripts/rescue_agent.py | python3${NC}\n"
 printf "%s\n" "--------------------------------------------------"
 
-# 5. Handshake & Smart Sync (Phase 5)
+# 5. Handover to Python Agent (Preferred for Chromebooks)
+if hostname | grep -q "penguin" && command -v python3 >/dev/null 2>&1; then
+    log_status "Chromebook detected. Handing over to Python Rescue Agent..."
+    
+    # Ensure variables are passed to the python agent
+    SERVER_IP=$(echo "$MAC_SERVER_URL" | sed 's|http://||' | sed 's|:.*||')
+    
+    # Fix Browser Integration (prevent it opening res.html in Vim)
+    if command -v xdg-settings >/dev/null 2>&1 && command -v garcon-url-handler >/dev/null 2>&1; then
+        xdg-settings set default-web-browser garcon-url-handler.desktop >/dev/null 2>&1
+    fi
+    
+    wget -q -O rescue_agent.py "$MAC_SERVER_URL/scripts/rescue_agent.py"
+    # Overwrite the current process with the Python agent
+    exec python3 rescue_agent.py
+fi
+
+# 6. Handshake & Smart Sync (Phase 6)
 log_status "Starting PC Handshake Server..."
 if command -v python3 >/dev/null 2>&1; then
     curl -s -O "$MAC_SERVER_URL/scripts/handshake_server.py"
@@ -153,7 +191,8 @@ while true; do
                 rm -f .confirmed
                 $PY_CMD render_output.py result_template.html instructions.sh "$(date)" "PENDING" > res.html
                 
-                if command -v firefox >/dev/null 2>&1; then firefox res.html &
+                if command -v garcon-url-handler >/dev/null 2>&1; then garcon-url-handler res.html &
+                elif command -v firefox >/dev/null 2>&1; then firefox res.html &
                 elif command -v google-chrome >/dev/null 2>&1; then google-chrome res.html &
                 else xdg-open res.html & fi
                 
