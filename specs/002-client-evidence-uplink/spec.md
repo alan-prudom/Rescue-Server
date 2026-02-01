@@ -1,8 +1,8 @@
 # Feature Specification: Client Evidence Uplink
 
-**Feature Branch**: `002-client-evidence-uplink`  
-**Created**: 2026-01-22  
-**Status**: Draft  
+**Feature Branch**: `002-client-evidence-uplink`
+**Created**: 2026-01-22
+**Status**: Draft
 **Input**: User request: "send screenshots and any text logs back to the mac server"
 
 ## User Scenarios & Testing

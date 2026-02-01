@@ -73,6 +73,7 @@ if [ "$INSTALLED" = "false" ]; then
         echo "✅ Tailscale installed successfully"
         TAILSCALE_VERSION=$(tailscale version 2>/dev/null | head -1)
         echo "   Version: $TAILSCALE_VERSION"
+        INSTALLED=true
     else
         echo "❌ ERROR: Tailscale installation failed"
         exit 1

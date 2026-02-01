@@ -9,15 +9,20 @@ This manual provides instructions and examples for using the Rescue Server to as
 The Rescue Server is deployed on a Mac to serve tools to a PC.
 
 ### Initialization
+
 Run the setup utility to provision the rescue site:
+
 ```bash
 bash setup_rescue_server.sh
 ```
-*   **Default Location**: `~/Desktop/rescue-site`
-*   **Result**: Creates folders for scripts, manuals, drivers, and evidence. Initializes a Git repository for auditing.
+
+* **Default Location**: `~/Desktop/rescue-site`
+* **Result**: Creates folders for scripts, manuals, drivers, and evidence. Initializes a Git repository for auditing.
 
 ### Starting the Server
+
 Navigate to the rescue site and launch the custom uplink server:
+
 ```bash
 cd ~/Desktop/rescue-site
 uv run python server/rescue_server.py 8000
@@ -27,17 +32,24 @@ uv run python server/rescue_server.py 8000
 
 ## 2. Accessing the Dashboard (PC Side)
 
-Open a web browser on the PC and enter the Mac's IP address:
-`http://[MAC-IP]:8000`
+### 2.1 The Command Centre (Live Feed)
 
-The dashboard provides structured access to all folders and an "Instant Evidence" tool for troubleshooting.
+Monitor and control multiple PCs in real-time by visiting the activity feed:
+`http://[MAC-IP]:8000/feed/`
+
+* **Context Actions**: Right-click a PC card to copy IP or run quick diagnostics.
+* **Analytics Modal**: Click any PC card to open a full-screen detailed view with real-time logs, audit history, and structured hardware profile.
+* **Status Triage**: Red flashing `HUNG` status indicates a process blocked on a password or confirmation. Amber `STALE` indicates no heartbeats.
+* **Backoff Logic**: The dashboard automatically reduces refresh rates when idle to save bandwidth, but snaps back to 10s updates on interaction.
 
 ---
 
 ## 3. Script Examples (PC/Technician)
 
 ### A. Downloading Tools
+
 To download a script directly to the PC terminal:
+
 ```bash
 # Example: Download the connection test tool
 wget http://192.168.1.8:8000/scripts/test_connection.sh
@@ -47,7 +59,9 @@ bash test_connection.sh
 ```
 
 ### B. Uploading Logs/Screenshots
+
 Use the `push_evidence.sh` utility to send files back to the Mac for review:
+
 ```bash
 # First, download the uploader
 wget http://192.168.1.8:8000/scripts/push_evidence.sh
@@ -56,10 +70,13 @@ wget http://192.168.1.8:8000/scripts/push_evidence.sh
 bash push_evidence.sh crash_dump.txt
 bash push_evidence.sh bluescreen.png
 ```
-*   **Where it goes**: Files are stored in the `evidence/` folder on the Mac with a timestamp prefix.
+
+* **Where it goes**: Files are stored in the `evidence/` folder on the Mac with a timestamp prefix.
 
 ### C. Instant Text Evidence
+
 If you have a snippet of text (like a terminal error) but don't want to save a file:
+
 1. Copy the text on the PC.
 2. Go to the **Web Dashboard**.
 3. Paste into the **Instant Evidence** box.
@@ -99,6 +116,43 @@ bash diag_vnc.sh
 
 This script checks the X Server, display variables, and port availability. It automatically uploads a `vnc_diag.log` to the Mac for review.
 
+### H. Intelligent Rescue Agent (v1.5.0)
+
+For advanced monitoring and "Zero-Touch" updates, launch the Python-based Intelligent Agent:
+
+```bash
+wget http://[MAC-IP]:8000/scripts/rescue_agent.py
+python3 rescue_agent.py
+```
+
+* **Smart Sync**: Automatically downloads updated scripts from the Mac based on MD5 checksums.
+* **Self-Updating**: The agent can hot-swap its own code and restart itself without interrupting the rescue.
+* **Pop-up Reports**: Successfully completed instructions will automatically pop up in the PC's default browser (via `garcon-url-handler` on Chromebooks).
+
+### I. Chromebook (Crostini) Fix
+
+If a Chromebook's package manager is locked or `sources.list` is malformed:
+
+```bash
+wget http://[MAC-IP]:8000/scripts/chromebook_fix.sh
+sh chromebook_fix.sh
+```
+
+This utility "busts" `apt` locks and repairs the environment before handing over control to the Intelligent Agent.
+
+### J. Tailscale VPN Provisioning
+
+To secure the connection and allow remote access outside the local network:
+
+```bash
+wget http://[MAC-IP]:8000/scripts/tailscale_setup.sh
+bash tailscale_setup.sh
+```
+
+* **Zero-Touch Install**: Detects package manager, installs dependencies, and enables the daemon.
+* **Interactive Login**: If logged out, provides a URL directly in the terminal to link the device to your Tailnet.
+* **Status Recovery**: Can restart hung `tailscaled` processes automatically.
+
 ---
 
 ## 4. Managing Evidence (Mac/AI Side)
@@ -118,8 +172,9 @@ cat ~/Desktop/rescue-site/evidence/20260122_1200_crash.txt
 ## 5. Audit Compliance
 
 Every setup and deployment action is logged automatically.
--   **Audit Log**: `~/Desktop/rescue-site/audit_logs/server_audit.log`
--   **Versioning**: Use `git log` inside the rescue site to see the history of changes.
+
+* **Audit Log**: `~/Desktop/rescue-site/audit_logs/server_audit.log`
+* **Versioning**: Use `git log` inside the rescue site to see the history of changes.
 
 ```bash
 cd ~/Desktop/rescue-site
@@ -129,5 +184,6 @@ git log --oneline
 ---
 
 ## ❓ Getting Help
+
 Every deployment includes an offline-friendly help guide. Visit:
 `http://[MAC-IP]:8000/manuals/system_help.html`

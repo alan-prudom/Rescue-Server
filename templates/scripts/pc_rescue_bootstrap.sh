@@ -204,6 +204,7 @@ while true; do
                 rm -f .confirmed
                 
                 # 4. Show EXECUTING state
+                log_status "Execution started on PC..."
                 echo "⏳ Instruction executing on PC..." > instructions.log
                 $PY_CMD render_output.py result_template.html instructions.log "$(date)" "EXECUTING" > res.html
                 
@@ -212,6 +213,7 @@ while true; do
                 ./instructions.sh > instructions.log 2>&1
                 
                 # 6. Show COMPLETED state
+                log_status "Execution complete. Pushing results."
                 $PY_CMD render_output.py result_template.html instructions.log "$(date)" "COMPLETED" > res.html
                 ./push_evidence.sh instructions.log
                 

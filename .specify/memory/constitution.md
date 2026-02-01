@@ -35,24 +35,40 @@ The Rescue Server MUST maintain a precise audit trail of all actions taken by th
 
 The user interface (both CLI and Web Dashboard) MUST provide unambiguous, actionable instructions. Ambiguity leads to errors during crisis moments. Every error message or instruction step MUST tell the user exactly what to do next.
 
+### VII. IP-Based Evidence Isolation
+
+All data collected from client PCs (audit logs, screenshots, system profiles) MUST be organized into IP-specific subdirectories within the `audit_logs/` and `evidence/` roots. This ensuring forensic clarity and prevents data collision when multiple PCs are being rescued simultaneously.
+
+### VIII. Live Command Centre Monitoring
+
+The server MUST provide a "Live Command Centre" interface that aggregates real-time status from all connected PCs. This interface MUST support:
+
+- **Hostname-First Identity**: PCs should be prominently identified by their hostname if available, then by Tailscale or Local IP.
+- **Interactive Remote Management**: Quick-launch actions for VNC and SSH MUST be available directly from the status cards.
+- **Exponential Backoff Polling**: To optimize performance, the feed refresh rate MUST use an exponential backoff strategy (up to 150s) while users are idle, resetting immediately upon user interaction.
+
 ## Operating Constraints
 
 ### Technology Stack
+
 - **Server**: Python 3 (via `uv` or system generic).
 - **Transport**: Standard HTTP (Port 8000 default).
 - **Frontend**: Static HTML5 + CSS. No build steps (e.g., Webpack, React) for the dashboard.
 - **Tools**: Bash Scripts (primary interface language).
 
 ### Security
+
 - **Access Control**: Open access on the local network (LAN) by default to facilitate immediate connection.
 - **Audit**: All state-changing operations MUST be logged to the audit trail/git history.
 
 ## Maintenance
 
 ### Directory Structure Integrity
+
 The server relies on a strict directory structure (`scripts`, `manuals`, `drivers`, `audit_logs`). Tools and scripts MUST respect this structure and NOT create arbitrary folders in the root without a constitution amendment.
 
 ### Documentation
+
 All scripts provided by the server MUST contain headers explaining their purpose, usage arguments, and expected output.
 
 ## Governance
@@ -63,4 +79,4 @@ This Constitution serves as the primary source of architectural truth for the Re
 - **Amendments**: Changes to this document require a Pull Request with explicit "Constitution Amendment" labeling and must include a rationale for the change.
 - **Versioning**: This document follows Semantic Versioning. Major changes involve altering Core Principles; Minor changes involve adding sections; Patch changes involve clarifications.
 
-**Version**: 1.0.1 | **Ratified**: 2026-01-22 | **Last Amended**: 2026-01-24
+**Version**: 1.0.2 | **Ratified**: 2026-01-30 | **Last Amended**: 2026-01-30

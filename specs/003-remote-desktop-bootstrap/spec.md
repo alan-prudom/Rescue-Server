@@ -1,8 +1,8 @@
 # Feature Specification: Remote Desktop Bootstrap
 
-**Feature Branch**: `003-remote-desktop-bootstrap`  
-**Created**: 2026-01-22  
-**Status**: Draft  
+**Feature Branch**: `003-remote-desktop-bootstrap`
+**Created**: 2026-01-22
+**Status**: Draft
 **Input**: User request: "run a remote desktop (VNC) from the linux live CD to view it on my mac"
 
 ## User Scenarios & Testing

@@ -105,10 +105,12 @@ create_help_docs() {
     provision_template "$(dirname "$0")/templates/web/manuals/system_help.html" "$BASE_DIR/manuals/system_help.html" "$ip"
 }
 
-# Phase 4/FR-017: Create Output Viewer Template
-create_output_viewer() {
-    echo "Generating command output viewer..."
+# Phase 4/FR-017: Create UI Templates
+create_ui_templates() {
+    echo "Generating real-time UI templates..."
     provision_template "$(dirname "$0")/templates/web/command_output.html" "$BASE_DIR/templates/web/command_output.html" "$ip"
+    provision_template "$(dirname "$0")/templates/web/live_feed.html" "$BASE_DIR/templates/web/live_feed.html" "$ip"
+    provision_template "$(dirname "$0")/templates/web/instructions.html" "$BASE_DIR/templates/web/instructions.html" "$ip"
 }
 
 # US1: Create sample scripts (FR-004, FR-007)
@@ -132,25 +134,25 @@ create_dynamic_instructions() {
     chmod +x "$BASE_DIR/scripts/instructions.sh"
 }
 
-# Phase 4: Diagnostic Integration
+# Phase 4: Diagnostic & Advanced Collection
 create_diagnostic_scripts() {
     echo "Generating diagnostic tools..."
     provision_template "$(dirname "$0")/templates/scripts/diag_vnc.sh" "$BASE_DIR/scripts/diag_vnc.sh" "$ip"
     chmod +x "$BASE_DIR/scripts/diag_vnc.sh"
     
-    # Provision Python VNC Diagnostic Tool
     provision_template "$(dirname "$0")/templates/scripts/vnc_diag.py" "$BASE_DIR/scripts/vnc_diag.py" "$ip"
+    provision_template "$(dirname "$0")/templates/scripts/capabilities_profiler.sh" "$BASE_DIR/scripts/capabilities_profiler.sh" "$ip"
+    chmod +x "$BASE_DIR/scripts/capabilities_profiler.sh"
 }
 
-# Phase 5: Smart Sync Helpers
-create_render_tool() {
-    echo "Generating template renderer..."
+# Phase 5: Smart Sync & Agent Integration
+create_agent_scripts() {
+    echo "Generating intelligent agent and sync helpers..."
     provision_template "$(dirname "$0")/templates/scripts/render_output.py" "$BASE_DIR/scripts/render_output.py" "$ip"
-}
-
-create_handshake_server() {
-    echo "Generating handshake server..."
     provision_template "$(dirname "$0")/templates/scripts/handshake_server.py" "$BASE_DIR/scripts/handshake_server.py" "$ip"
+    provision_template "$(dirname "$0")/templates/scripts/rescue_agent.py" "$BASE_DIR/scripts/rescue_agent.py" "$ip"
+    provision_template "$(dirname "$0")/templates/scripts/execute_instruction.sh" "$BASE_DIR/scripts/execute_instruction.sh" "$ip"
+    chmod +x "$BASE_DIR/scripts/execute_instruction.sh"
 }
 
 # Feature 003: Remote Desktop Bootstrap (Mac <-> Linux VNC)
@@ -170,6 +172,15 @@ create_master_bootstrap_script() {
     
     provision_template "$(dirname "$0")/templates/scripts/pc_rescue_bootstrap.sh" "$BASE_DIR/scripts/pc_rescue_bootstrap.sh" "$ip"
     chmod +x "$BASE_DIR/scripts/pc_rescue_bootstrap.sh"
+}
+
+# Feature 007: Chromebook Specialized Fixes
+create_chromebook_scripts() {
+    echo "Generating Chromebook specialized tools..."
+    provision_template "$(dirname "$0")/templates/scripts/chromebook_fix.sh" "$BASE_DIR/scripts/chromebook_fix.sh" "$ip"
+    chmod +x "$BASE_DIR/scripts/chromebook_fix.sh"
+    provision_template "$(dirname "$0")/templates/scripts/cb_power_pack.sh" "$BASE_DIR/scripts/cb_power_pack.sh" "$ip"
+    chmod +x "$BASE_DIR/scripts/cb_power_pack.sh"
 }
 
 # US3: Client-side evidence uploader (Feature 002)
@@ -259,9 +270,9 @@ main() {
     create_fetch_tool_script "$ip"
     create_dynamic_instructions "$ip"
     create_diagnostic_scripts "$ip"
-    create_render_tool "$ip"
-    create_handshake_server "$ip"
-    create_output_viewer "$ip"
+    create_agent_scripts "$ip"
+    create_ui_templates "$ip"
+    create_chromebook_scripts "$ip"
     
     log_audit_event "SETUP" "Directories and scripts generated."
     

@@ -32,6 +32,8 @@
             --terminal-header-bg: #21262d;
             --terminal-header-text: #8b949e;
             --accent-color: #58a6ff;
+            --warning-color: #d29922;
+            --error-color: #f85149;
         }
 
         body {
@@ -77,9 +79,11 @@
             display: flex;
             flex-wrap: wrap;
             gap: 15px;
-            max-height: 40%;
+            max-height: 70%;
+            /* US: Increased to allow 3-4 rows naturally */
             overflow-y: auto;
             align-content: flex-start;
+            flex-shrink: 0;
         }
 
         .pc-card {
@@ -100,9 +104,47 @@
         .pc-card-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 8px;
+        }
+
+        .pc-title-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .pc-main-line {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 2px;
+        }
+
+        .pc-name {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: var(--text-color);
+        }
+
+        .pc-ts-tag {
+            font-size: 0.75rem;
+            background: rgba(35, 134, 54, 0.15);
+            color: var(--success-color);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-family: monospace;
+            border: 1px solid rgba(35, 134, 54, 0.3);
+        }
+
+        .pc-ts-tag::before {
+            content: "🔒 ";
+        }
+
+        .pc-local-ip {
+            color: #57606a;
         }
 
         .pc-ip {
@@ -127,6 +169,32 @@
             background: #6e7781;
         }
 
+        .status-warning {
+            background: #d29922;
+        }
+
+        .status-error {
+            background: #f85149;
+        }
+
+        .status-hung {
+            animation: pulse-red 2s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
         .pc-card-body {
             font-size: 0.85rem;
         }
@@ -142,6 +210,9 @@
             background: rgba(0, 0, 0, 0.03);
             padding: 4px;
             border-radius: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         /* Context Menu Styles */
@@ -249,6 +320,131 @@
         .theme-toggle {
             margin-right: 10px;
         }
+
+        .home-btn {
+            text-decoration: none;
+            margin-left: 10px;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            backdrop-filter: blur(2px);
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            width: 85%;
+            max-width: 1000px;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-nav {
+            display: flex;
+            background: var(--terminal-header-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .nav-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: var(--terminal-header-text);
+            border-right: 1px solid var(--border-color);
+        }
+
+        .nav-tab.active {
+            background: var(--card-bg);
+            color: var(--accent-color);
+            border-bottom: 2px solid var(--accent-color);
+        }
+
+        .modal-body {
+            flex-grow: 1;
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tab-content {
+            display: none;
+            height: 100%;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .modal-footer {
+            padding: 12px 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .code-view {
+            background: var(--terminal-bg);
+            color: var(--terminal-text);
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            margin: 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .capabilities-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .cap-item {
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .cap-label {
+            font-size: 0.7rem;
+            color: #8b949e;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .cap-value {
+            font-size: 0.9rem;
+            font-family: monospace;
+        }
     </style>
 </head>
 
@@ -258,7 +454,7 @@
         <div>
             <button class="btn theme-toggle" id="theme-btn">🌓 Theme</button>
             <button class="btn" onclick="location.reload()">🔄 Refresh</button>
-            <a href="/" class="btn" style="text-decoration: none; margin-left: 10px;">🏠 Home</a>
+            <a href="/" class="btn home-btn">🏠 Home</a>
         </div>
     </div>
 
@@ -280,12 +476,45 @@
         </div>
     </div>
 
+    <!-- PC Details Modal -->
+    <div id="details-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title" style="margin:0; font-size: 1.1rem;">Client Details: 0.0.0.0</h2>
+                <button class="btn" onclick="closeModal()">✕</button>
+            </div>
+            <div class="modal-nav">
+                <div class="nav-tab active" onclick="switchTab('tab-activity')">Activity Log</div>
+                <div class="nav-tab" onclick="switchTab('tab-audit')">Last Audit Output</div>
+                <div class="nav-tab" onclick="switchTab('tab-sys')">System Profile</div>
+            </div>
+            <div class="modal-body">
+                <div id="tab-activity" class="tab-content active">
+                    <pre id="modal-activity" class="code-view">Loading logs...</pre>
+                </div>
+                <div id="tab-audit" class="tab-content">
+                    <pre id="modal-audit" class="code-view">Loading audit results...</pre>
+                </div>
+                <div id="tab-sys" class="tab-content">
+                    <div id="modal-sys" class="capabilities-grid">
+                        Loading system data...
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" id="modal-actions">
+                <!-- Dynamic actions injected here -->
+                <button class="btn" onclick="closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Interactive Context Menu -->
     <div id="ctx-menu" class="context-menu">
         <div class="menu-label" id="menu-ip-title">PC: 0.0.0.0</div>
         <div class="menu-item" id="btn-copy">📋 Copy IP Address</div>
         <div class="menu-divider"></div>
         <div class="menu-label">Diagnostics</div>
+        <div class="menu-item" id="btn-pulse">⚡ Pulse Command (Immediate Sync)</div>
         <div class="menu-item" id="btn-logs">🔍 Inspect Logs</div>
         <div class="menu-item" id="btn-instr">📜 View Sent Instructions</div>
         <div class="menu-item" id="btn-diag">🛠️ Diagnose VNC Link</div>
@@ -301,11 +530,12 @@
         const menu = document.getElementById('ctx-menu');
         let activeIP = "";
 
-        function showMenu(e, ip, instrLink, logLink) {
+        function showMenu(e, ip, instrLink, logLink, connIP) {
             e.preventDefault();
             e.stopPropagation();
-            activeIP = ip;
-            document.getElementById('menu-ip-title').innerText = "PC: " + ip;
+            activeIP = ip || "0.0.0.0";
+            const targetConnIP = connIP && connIP !== "None" ? connIP : (ip || "0.0.0.0");
+            document.getElementById('menu-ip-title').innerText = "PC: " + (activeIP);
 
             menu.style.display = "flex";
             menu.style.left = e.clientX + "px";
@@ -317,18 +547,29 @@
             document.getElementById('btn-instr').onclick = () => { window.open(instrLink, '_blank'); hideMenu(); };
 
             // Logic Action: Native macOS Screen Sharing
-            document.getElementById('btn-vnc-native').onclick = () => { window.location.href = `vnc://${ip}:5900`; hideMenu(); };
+            document.getElementById('btn-vnc-native').onclick = () => { window.location.href = `vnc://${targetConnIP}:5900`; hideMenu(); };
 
             // Logic Action: RealVNC specific URI scheme
             document.getElementById('btn-vnc-real').onclick = () => {
-                window.location.href = `com.realvnc.vncviewer.connect://${ip}`;
+                window.location.href = `com.realvnc.vncviewer.connect://${targetConnIP}`;
                 hideMenu();
             };
 
             document.getElementById('btn-ssh').onclick = () => {
-                const cmd = `ssh -X rescue@${ip}`;
+                let portFlag = "";
+                let user = "rescue";
+
+                const titleText = document.getElementById('menu-ip-title').innerText.toLowerCase();
+                const fullText = menu.innerText.toLowerCase();
+
+                if (titleText.includes("penguin") || fullText.includes("penguin") || fullText.includes("chromebook")) {
+                    portFlag = "-p 2222 ";
+                    user = "alanp2"; // Standard Crostini user
+                }
+
+                const cmd = `ssh -X ${portFlag}${user}@${targetConnIP}`;
                 navigator.clipboard.writeText(cmd).then(() => {
-                    alert(`Command copied to clipboard:\n${cmd}`);
+                    alert(`SSH Command copied to clipboard:\n${cmd}\n\nNote: For Chromebooks, we use Port 2222.`);
                 });
                 hideMenu();
             };
@@ -338,10 +579,10 @@
                 btn.innerText = "⏳ Running Diagnostic...";
                 btn.style.opacity = "0.5";
 
-                fetch(`/diag_vnc?ip=${activeIP}`)
+                fetch(`/diag_vnc?ip=${targetConnIP}`)
                     .then(r => r.json())
                     .then(data => {
-                        alert(`VNC DIAGNOSTIC RESULT for ${activeIP}:\n\nStatus: ${data.status}\nPort: ${data.port}\n\n${data.log}`);
+                        alert(`VNC DIAGNOSTIC RESULT for ${targetConnIP}:\n\nStatus: ${data.status}\nPort: ${data.port}\n\n${data.log}`);
                         btn.innerText = "🛠️ Diagnose VNC Link";
                         btn.style.opacity = "1";
                         // The next auto-refresh will update the card status
@@ -353,10 +594,135 @@
                     });
                 hideMenu();
             };
+
+            document.getElementById('btn-pulse').onclick = () => {
+                const btn = document.getElementById('btn-pulse');
+                const originalText = btn.innerText;
+                btn.innerText = "⚡ Pulsing...";
+
+                fetch(`/pulse?ip=${targetConnIP}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        console.log("Pulse response:", data);
+                        btn.innerText = originalText;
+                    })
+                    .catch(e => {
+                        console.error("Pulse error:", e);
+                        btn.innerText = originalText;
+                    });
+                hideMenu();
+            };
         }
 
         function hideMenu() { menu.style.display = "none"; }
         document.addEventListener('click', hideMenu);
+
+        // PC Details Modal Logic
+        const detailsModal = document.getElementById('details-modal');
+        function openDetails(e, ip, instrLink, logLink, connIP, hostName) {
+            activeIP = ip;
+            document.getElementById('modal-title').innerText = "Client Analytics: " + (hostName || ip);
+            detailsModal.style.display = "flex";
+
+            // Populate Remote Management Suite in the footer
+            const footer = document.getElementById('modal-actions');
+            const target = connIP || ip;
+
+            footer.innerHTML = `
+                <div style="flex-grow: 1; display: flex; gap: 8px;">
+                    <button class="btn" onclick="window.location.href='vnc://${target}'" title="macOS Screen Sharing">🖥️ VNC (Mac)</button>
+                    <button class="btn" onclick="window.location.href='com.realvnc.vncviewer.connect://${target}'">💻 VNC (Real)</button>
+                    <button class="btn" onclick="copySSH('${target}')">📟 SSH</button>
+                    <button class="btn" onclick="runVncDiag('${target}')">🛠️ Diag VNC</button>
+                </div>
+                <button class="btn" onclick="window.open('${logLink}', '_blank')">History</button>
+                <button class="btn" onclick="window.open('${instrLink}', '_blank')">Files</button>
+                <button class="btn" onclick="triggerPulse('${target}')" style="background:var(--warning-color); color:white; border:none;">⚡ Pulse</button>
+                <button class="btn" onclick="closeModal()">Close</button>
+            `;
+
+            // Start fetching details
+            fetch(`/client_details?ip=${ip}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.display_name) {
+                        document.getElementById('modal-title').innerText = "Client Analytics: " + data.display_name;
+                    }
+                    document.getElementById('modal-activity').innerText = data.activity_log.join("");
+                    document.getElementById('modal-audit').innerText = data.last_audit;
+
+                    // Render capabilities
+                    const sysGrid = document.getElementById('modal-sys');
+                    if (data.capabilities.system) {
+                        const caps = data.capabilities;
+                        sysGrid.innerHTML = `
+                            <div class="cap-item"><div class="cap-label">Manufacturer</div><div class="cap-value">${caps.hardware.system_vendor || 'Unknown'}</div></div>
+                            <div class="cap-item"><div class="cap-label">Model</div><div class="cap-value">${caps.hardware.system_model || 'Unknown'}</div></div>
+                            <div class="cap-item"><div class="cap-label">OS</div><div class="cap-value">${caps.system.os_name} ${caps.system.os_version}</div></div>
+                            <div class="cap-item"><div class="cap-label">Kernel</div><div class="cap-value">${caps.system.kernel}</div></div>
+                            <div class="cap-item"><div class="cap-label">CPU</div><div class="cap-value">${caps.hardware.cpu.model}</div></div>
+                            <div class="cap-item"><div class="cap-label">Cores</div><div class="cap-value">${caps.hardware.cpu.cores}</div></div>
+                            <div class="cap-item"><div class="cap-label">Memory</div><div class="cap-value">${caps.hardware.memory.total}</div></div>
+                            <div class="cap-item"><div class="cap-label">Tailscale</div><div class="cap-value">${caps.network.tailscale_ip}</div></div>
+                        `;
+                    }
+                    else {
+                        sysGrid.innerHTML = "<p>System profile not yet generated for this machine.</p>";
+                    }
+                })
+                .catch(e => console.error("Details fetch error:", e));
+        }
+
+        function closeModal() { detailsModal.style.display = "none"; }
+
+        function copySSH(target) {
+            // Heuristic: If it's a Chromebook (detect via hostname)
+            let portFlag = "";
+            const title = document.getElementById('modal-title').innerText.toLowerCase();
+            if (title.includes("chromebook") || title.includes("penguin")) {
+                portFlag = "-p 2222 ";
+            }
+            const cmd = `ssh -X ${portFlag}rescue@${target}`;
+            navigator.clipboard.writeText(cmd).then(() => {
+                alert(`SSH Command copied to clipboard:\n${cmd}`);
+            });
+        }
+
+        function runVncDiag(target) {
+            fetch(`/diag_vnc?ip=${target}`)
+                .then(r => r.json())
+                .then(data => {
+                    alert(`VNC DIAGNOSTIC RESULT for ${target}:\n\nStatus: ${data.status}\nPort: ${data.port}\n\n${data.log}`);
+                })
+                .catch(e => alert(`Error running diagnostic: ${e}`));
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            // find the tab element that has the switchTab(tabId) onclick
+            document.querySelectorAll('.nav-tab').forEach(t => {
+                if (t.getAttribute('onclick').includes(tabId)) t.classList.add('active');
+            });
+        }
+
+        function triggerPulse(ip) {
+            fetch(`/pulse?ip=${ip}`).then(() => alert("Pulse sent. Refreshing..."));
+        }
+
+        // Context Menu trigger on Right Click
+        document.addEventListener('contextmenu', e => {
+            const card = e.target.closest('.pc-card');
+            if (card) {
+                e.preventDefault();
+                const ip = card.getAttribute('data-ip');
+                const instr = card.getAttribute('data-instr');
+                const log = card.getAttribute('data-log');
+                const conn = card.getAttribute('data-conn');
+                showMenu(e, ip, instr, log, conn);
+            }
+        });
 
         // Theme Management
         const themeBtn = document.getElementById('theme-btn');
@@ -370,50 +736,38 @@
         });
 
         // Auto-refresh logic with Exponential Backoff
-        // Initial delay: 10s. Cap: 150s.
         const timerEl = document.getElementById('update-timer');
 
-        let initialTime = 10;
-        let timeLeft = initialTime;
+        // Config
+        const INITIAL_BACKOFF = 10;
+        const MAX_BACKOFF = 150;
+        const BACKOFF_MULTIPLIER = 2.0;
 
-        // Retrieve last backoff state from session storage to persist across reloads
-        // If the page was just reloaded, increase the delay for the NEXT cycle
-        let currentBackoff = parseInt(sessionStorage.getItem('refreshBackoff') || "10");
-
-        // If we just reloaded, it means the previous cycle finished. 
-        // We should start with the *current* backoff value.
-        // However, to mimic "backoff", we should probably double it for the *next* reload 
-        // if we want the user to feel the time increasing. 
-        // But for a dashboard, we usually want it to reset on user interaction or success.
-        // Given the requirement "Exponential backoff for mac server feed refresh", 
-        // we'll double the wait time on each reload until 150s.
-
-        timeLeft = currentBackoff;
+        // Retrieve state
+        let currentBackoff = parseInt(sessionStorage.getItem('refreshBackoff') || INITIAL_BACKOFF);
+        let timeLeft = currentBackoff;
 
         function updateTimer() {
             timeLeft--;
             if (timeLeft <= 0) {
-                // Determine next backoff duration
-                let nextBackoff = currentBackoff * 1.5;
-                if (nextBackoff > 150) nextBackoff = 150;
+                // Exponential backoff for next reload
+                let nextBackoff = currentBackoff * BACKOFF_MULTIPLIER;
+                if (nextBackoff > MAX_BACKOFF) nextBackoff = MAX_BACKOFF;
 
-                // Save it for the next reload
                 sessionStorage.setItem('refreshBackoff', Math.floor(nextBackoff));
-
                 location.reload();
             } else {
-                timerEl.innerText = `Refreshing in ${timeLeft.toFixed(0)}s...`;
+                timerEl.innerText = `Refreshing in ${timeLeft}s... (Wait: ${currentBackoff}s)`;
             }
         }
 
-        // Reset backoff on ANY user interaction (click/mousemove)
-        // This ensures active users get fast updates (10s), while idle dashboards back off.
+        // Reset backoff on ANY user interaction
         function resetBackoff() {
-            if (currentBackoff > 10) {
-                sessionStorage.setItem('refreshBackoff', "10");
-                // Optional: visual cue or immediate reload? 
-                // For now, next reload will be fast. 
-                // Let's just reset the storage so the *next* cycle starts at 10.
+            if (currentBackoff > INITIAL_BACKOFF) {
+                sessionStorage.setItem('refreshBackoff', INITIAL_BACKOFF.toString());
+                // Optional: Update UI immediately to show reset? 
+                // We'll let the current timer finish, or we could reload.
+                // For a smoother experience, we just ensure NEXT reload is 10s.
             }
         }
 

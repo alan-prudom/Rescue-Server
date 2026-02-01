@@ -1,8 +1,8 @@
 # Feature Specification: Rescue Server Setup Utility
 
-**Feature Branch**: `001-rescue-server-setup`  
-**Created**: 2026-01-22  
-**Status**: Draft  
+**Feature Branch**: `001-rescue-server-setup`
+**Created**: 2026-01-22
+**Status**: Draft
 **Input**: User description: "examine setup_rescue_server.sh and deduce a specification"
 
 ## Clarifications

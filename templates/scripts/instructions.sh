@@ -27,12 +27,12 @@ echo -e "\n[3/8] Memory (RAM) Analysis..."
 free -h
 if command -v dmidecode >/dev/null 2>&1; then
     echo "--- Hardware Dimms ---"
-    sudo dmidecode -t memory | grep -E 'Size|Type|Speed|Manufacturer' | grep -v 'No Module'
+    sudo -n dmidecode -t memory 2>/dev/null | grep -E 'Size|Type|Speed|Manufacturer' | grep -v 'No Module'
 fi
 
 echo -e "\n[4/8] Motherboard & BIOS..."
 if command -v dmidecode >/dev/null 2>&1; then
-    sudo dmidecode -t system -t baseboard -t bios | grep -E 'Manufacturer|Product Name|Version|Release Date'
+    sudo -n dmidecode -t system -t baseboard -t bios 2>/dev/null | grep -E 'Manufacturer|Product Name|Version|Release Date'
 fi
 
 echo -e "\n[5/8] PCI Devices (GPU, Network, etc.)..."
@@ -60,18 +60,46 @@ else
     for dev in $UNMOUNTED_DISKS; do
         MOUNT_POINT="/mnt/rescue_$dev"
         echo "[*] Found: /dev/$dev. Attempting to mount at $MOUNT_POINT..."
-        sudo mkdir -p "$MOUNT_POINT"
+        sudo -n mkdir -p "$MOUNT_POINT" 2>/dev/null
         # Try read-only first for safety
-        if sudo mount -o ro "/dev/$dev" "$MOUNT_POINT" 2>/dev/null; then
+        if sudo -n mount -o ro "/dev/$dev" "$MOUNT_POINT" 2>/dev/null; then
             echo "    ✅ SUCCESS: Mounted (Read-Only) at $MOUNT_POINT"
             ls -lh "$MOUNT_POINT" | head -n 10
         else
-            echo "    ❌ FAIL: Could not mount /dev/$dev"
-            sudo rmdir "$MOUNT_POINT" 2>/dev/null
+            echo "    ❌ FAIL: Could not mount /dev/$dev (Requires Sudo Interaction)"
+            sudo -n rmdir "$MOUNT_POINT" 2>/dev/null
         fi
     done
 fi
 
+# Determine Mac Server IP (Heuristic)
+MAC_URL="http://192.168.1.61:8000"
+
+echo -e "\n[*] Running supplemental Disk Health Probe (LITE)..."
+if [ ! -f "disk_health_probe_lite.sh" ]; then
+    if command -v curl >/dev/null 2>&1; then curl -s -O "$MAC_URL/scripts/disk_health_probe_lite.sh"; 
+    else wget -q "$MAC_URL/scripts/disk_health_probe_lite.sh" -O disk_health_probe_lite.sh; fi
+fi
+[ -f "disk_health_probe_lite.sh" ] && bash disk_health_probe_lite.sh
+
+echo -e "\n[*] Running Tailscale Provisioning Check..."
+if [ ! -f "tailscale_setup.sh" ]; then
+    if command -v curl >/dev/null 2>&1; then curl -s -O "$MAC_URL/scripts/tailscale_setup.sh";
+    else wget -q "$MAC_URL/scripts/tailscale_setup.sh" -O tailscale_setup.sh; fi
+fi
+[ -f "tailscale_setup.sh" ] && bash tailscale_setup.sh
+
+echo -e "\n[*] Refreshing System Capabilities Profile..."
+if [ ! -f "capabilities_profiler.sh" ]; then
+    if command -v curl >/dev/null 2>&1; then curl -s -O "$MAC_URL/scripts/capabilities_profiler.sh";
+    else wget -q "$MAC_URL/scripts/capabilities_profiler.sh" -O capabilities_profiler.sh; fi
+fi
+if [ -f "capabilities_profiler.sh" ]; then
+    chmod +x capabilities_profiler.sh
+    MAC_IP_ONLY=$(echo "$MAC_URL" | sed 's|http://||' | sed 's|:.*||')
+    ./capabilities_profiler.sh "$MAC_IP_ONLY"
+fi
+
 echo -e "\n=================================================="
-echo "✅ Comprehensive Audit Complete."
+echo "✅ Comprehensive Audit & Provisioning Complete."
 echo "=================================================="

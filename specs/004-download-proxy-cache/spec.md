@@ -1,8 +1,8 @@
 # Feature Specification: Proxy Download Cache
 
-**Feature Branch**: `004-download-proxy-cache`  
-**Created**: 2026-01-22  
-**Status**: Draft  
+**Feature Branch**: `004-download-proxy-cache`
+**Created**: 2026-01-22
+**Status**: Draft
 **Input**: User request: "PC requests Mac downloads files to cache, then PC gets them from Mac"
 
 ## User Scenarios & Testing

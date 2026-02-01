@@ -7,7 +7,7 @@ Transform the basic web dashboard into a premium, real-time command center for m
 - **⚡ Live Activity Feed**: Real-time display of `[HEARTBEAT]` and `[BOOTSTRAP]` messages via Auto-Refresh or WebSockets.
 - **🟢 Multi-PC Monitoring**: Grid view showing status cards for every PC that has connected (IP, VNC status, Last Seen).
 - **🖱️ One-Click Remote**: Prominent "Connect" button that triggers the Mac's `vnc://` handler for the specific PC.
-- **🎨 Premium Interface**: 
+- **🎨 Premium Interface**:
   - Dark mode support by default.
   - Glassmorphism effects for a modern look.
   - Progress bars showing installation stages synced from the PC's `log_status`.

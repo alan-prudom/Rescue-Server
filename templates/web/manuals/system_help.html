@@ -71,12 +71,23 @@
     <p>Verify that the PC can successfully communicate with the Mac server.</p>
     <pre>wget http://{{MAC_IP}}:8000/scripts/test_connection.sh<br>bash test_connection.sh</pre>
 
-    <h3>2. <code>push_evidence.sh</code></h3>
-    <p>Upload a file (log, image, screenshot) from the PC back to the Mac evidence folder.</p>
-    <pre>bash push_evidence.sh my_error_log.txt</pre>
+    <h3>3. <code>rescue_agent.py</code></h3>
+    <p>The Intelligent Rescue Agent (Python 3). Runs the background sync loop, self-updates, and handles instruction
+        injection.</p>
+    <pre>wget http://{{MAC_IP}}:8000/scripts/rescue_agent.py<br>python3 rescue_agent.py</pre>
+
+    <h2>💻 Chromebook (Crostini) Support</h2>
+    <p>Chromebooks require specialized handling for package manager locks and browser integration.</p>
+    <ul>
+        <li><strong>Bust Locks</strong>: If you see "apt locked" errors, run <code>chromebook_fix.sh</code>.</li>
+        <li><strong>Automatic Handover</strong>: The master bootstrap detects <code>penguin</code> and automatically
+            upgrades to the Intelligent Agent.</li>
+        <li><strong>Browser Reports</strong>: Diagnostic results pop up in your Chrome browser automatically.</li>
+    </ul>
 
     <h2>📝 Web Dashboard Features</h2>
     <ul>
+        <li><strong>Live Activity Feed</strong>: Monitor all connected PCs in real-time at <code>/feed/</code>.</li>
         <li><strong>Auto-indexing</strong>: All files added to the folders on the Mac appear instantly in the lists.
         </li>
         <li><strong>Instant Evidence</strong>: Use the text area to paste terminal output or notes. Click "Save
@@ -84,17 +95,18 @@
     </ul>
 
     <div class="note">
-        <strong>Pro Tip:</strong> Ensure you are on the same Wi-Fi or Ethernet network as the Mac for the IP address to
-        be reachable.
+        <strong>Pro Tip:</strong> Dashboard refresh rates use <strong>Exponential Backoff</strong> (10s to 150s). Move
+        your mouse or click anywhere to reset the timer to 10s for active monitoring.
     </div>
 
-    <h3>⚠️ VNC Troubleshooting</h3>
+    <h3>⚠️ VNC & Connection Troubleshooting</h3>
     <p>If you see a black screen or cannot connect:</p>
     <ol>
-        <li>Log out of the Linux PC.</li>
-        <li>On the login screen, click the <strong>Gear Icon</strong> (⚙️).</li>
-        <li>Select <strong>"GNOME on Xorg"</strong> (or "Ubuntu on Xorg").</li>
-        <li>Log back in and run <code>start_vnc.sh</code> again.</li>
+        <li><strong>Xorg Check</strong>: Ensure you are logged into "GNOME on Xorg" rather than Wayland.</li>
+        <li><strong>Firewall</strong>: The bootstrap attempts to disable <code>ufw</code> and <code>firewalld</code>.
+            Check <code>sudo iptables -L</code>.</li>
+        <li><strong>Agent Log</strong>: On the Chromebook, check <code>client_activity.log</code> in the
+            <code>audit_logs</code> directory on the Mac.</li>
     </ol>
 
     <p><br><a href="../index.html">⬅️ Back to Dashboard</a></p>

@@ -24,9 +24,16 @@ EOF_INIT
 
 # Helper function to safely get command output
 safe_cmd() {
-    local cmd="$1"
-    if command -v "$cmd" >/dev/null 2>&1; then
-        eval "$cmd" 2>/dev/null || echo "N/A"
+    local full_cmd="$1"
+    local base_cmd=$(echo "$full_cmd" | awk '{print $1}')
+    # If using sudo, check if sudo exists, then check the actual command
+    if [ "$base_cmd" = "sudo" ]; then
+        base_cmd=$(echo "$full_cmd" | awk '{print $2}')
+        if ! command -v sudo >/dev/null 2>&1; then echo "N/A"; return; fi
+    fi
+
+    if command -v "$base_cmd" >/dev/null 2>&1; then
+        eval "$full_cmd" 2>/dev/null || echo "N/A"
     else
         echo "N/A"
     fi
@@ -51,6 +58,13 @@ HOSTNAME=$(hostname)
 
 # === HARDWARE IDENTIFICATION ===
 echo "[2/6] Hardware Identification..."
+
+# System Identification
+SYS_VENDOR=$(safe_cmd "sudo dmidecode -s system-manufacturer")
+[ "$SYS_VENDOR" = "N/A" ] && SYS_VENDOR=$(safe_cmd "cat /sys/class/dmi/id/sys_vendor")
+
+SYS_MODEL=$(safe_cmd "sudo dmidecode -s system-product-name")
+[ "$SYS_MODEL" = "N/A" ] && SYS_MODEL=$(safe_cmd "cat /sys/class/dmi/id/product_name")
 
 # System Serial Number
 SYS_SERIAL=$(safe_cmd "sudo dmidecode -s system-serial-number")
@@ -144,6 +158,8 @@ cat > "$OUTPUT_FILE" << EOF
     "display_server": "$DISPLAY_SERVER"
   },
   "hardware": {
+    "system_vendor": "$SYS_VENDOR",
+    "system_model": "$SYS_MODEL",
     "system_serial": "$SYS_SERIAL",
     "system_uuid": "$SYS_UUID",
     "motherboard": {
@@ -219,7 +235,7 @@ if [ -n "$MAC_IP" ]; then
     fi
     
     # Also send a status update
-    STATUS_MSG="[CAPABILITIES] Profile generated: $HOSTNAME | OS: $OS_NAME $OS_VERSION | IP: $PRIMARY_IP"
+    STATUS_MSG="[CAPABILITIES] Profile generated: $HOSTNAME | $SYS_MODEL | OS: $OS_NAME $OS_VERSION | IP: $PRIMARY_IP"
     if command -v curl >/dev/null 2>&1; then
         curl -s -d "content=$STATUS_MSG" "http://$MAC_IP:8000/" >/dev/null 2>&1
     elif command -v wget >/dev/null 2>&1; then

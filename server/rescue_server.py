@@ -22,6 +22,57 @@ class RescueHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         client_dir.mkdir(parents=True, exist_ok=True)
         return client_dir
 
+    def _get_pc_identity(self, ip_addr):
+        """Helper to extract hostname, model, and tailscale IP from evidence/logs."""
+        hostname = ""
+        hw_model = ""
+        tailscale_ip = "N/A"
+        
+        # 1. Try JSON evidence
+        evidence_dir = Path("evidence") / ip_addr
+        if evidence_dir.exists():
+            cap_files = sorted(list(evidence_dir.glob("*_capabilities.json")), reverse=True)
+            if cap_files:
+                try:
+                    import json
+                    with open(cap_files[0], "r") as fcap:
+                        cap_data = json.load(fcap)
+                        tailscale_ip = cap_data.get("network", {}).get("tailscale_ip", "N/A")
+                        hostname = cap_data.get("system", {}).get("hostname", "")
+                        hw_model = cap_data.get("hardware", {}).get("system_model", "")
+                        if not hw_model or hw_model == "N/A":
+                            hw_model = cap_data.get("hardware", {}).get("motherboard", {}).get("product", "")
+                        if not hostname:
+                            hostname = cap_data.get("hostname", "")
+                except: pass
+
+        # 2. Try Heuristic logs
+        log_file = Path("audit_logs") / ip_addr / "client_activity.log"
+        if log_file.exists():
+            with open(log_file, "r") as f:
+                for line in reversed(f.readlines()):
+                    if "[CAPABILITIES]" in line and "Profile generated:" in line:
+                        try: 
+                            parts = line.split("Profile generated:")[1].split("|")
+                            if not hostname: hostname = parts[0].strip()
+                            if not hw_model: hw_model = parts[1].strip()
+                        except: pass
+                    if "[TS: " in line and tailscale_ip == "N/A":
+                        import re
+                        match = re.search(r"\[TS:\s*([0-9\.]+)\]", line)
+                        if match: tailscale_ip = match.group(1).strip()
+        
+        # 3. Calculate Display Name
+        display_name = hostname if hostname else ip_addr
+        generic_names = ["ubuntu", "localhost", "debian", "live", "amnesia", "penguin"]
+        if hostname.lower() in generic_names or not hostname:
+            if hw_model and hw_model != "N/A":
+                display_name = hw_model.strip()
+            else:
+                display_name = ip_addr
+                
+        return hostname, hw_model, tailscale_ip, display_name
+
     def do_GET(self):
         # Feature: Remote Shutdown
         if self.path == '/shutdown':
@@ -79,6 +130,16 @@ class RescueHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._handle_instructions()
             return
 
+        # Feature: Pulse Protocol (Immediate Trigger)
+        if self.path.startswith('/pulse'):
+            self._handle_pulse()
+            return
+
+        # Feature: Client Detail Fetch (US: Detailed Modal Support)
+        if self.path.startswith('/client_details'):
+            self._handle_client_details()
+            return
+
         super().do_GET()
 
     def _handle_live_feed(self):
@@ -100,62 +161,81 @@ class RescueHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 last_msg = "Unknown"
                 last_time = "Never"
                 vnc_status = "STOPPED"
-                tailscale_ip = "N/A"
+                hostname, hw_model, tailscale_ip, display_name = self._get_pc_identity(ip_addr)
                 
-                # Try to get tailscale_ip from most recent capabilities.json
-                evidence_dir = Path("evidence") / ip_addr
-                if evidence_dir.exists():
-                    cap_files = sorted(list(evidence_dir.glob("*_capabilities.json")), reverse=True)
-                    if cap_files:
-                        try:
-                            import json
-                            with open(cap_files[0], "r") as fcap:
-                                cap_data = json.load(fcap)
-                                tailscale_ip = cap_data.get("network", {}).get("tailscale_ip", "N/A")
-                        except:
-                            pass
-
                 with open(log_file, "r") as f:
                     lines = f.readlines()
                     if lines:
                         # Extract PC Card info from last messages
-                        latest_bootstrap_line = None
                         for line in reversed(lines):
-                            if "[BOOTSTRAP]" in line:
-                                latest_bootstrap_line = line
-                                if not last_msg or last_msg == "Unknown":
-                                    last_msg = line.split("]", 1)[1].strip()
-                                    last_time = line.split("]", 1)[0].strip("[")
-                            
-                            if "[HEARTBEAT]" in line and last_msg == "Unknown":
+                            if "[BOOTSTRAP]" in line and (not last_msg or last_msg == "Unknown"):
                                 last_msg = line.split("]", 1)[1].strip()
                                 last_time = line.split("]", 1)[0].strip("[")
                                 if "VNC: RUNNING" in line: vnc_status = "RUNNING"
                             
-                            if "[CAPABILITIES]" in line and last_msg == "Unknown":
+                            if "[HEARTBEAT]" in line and (not last_msg or last_msg == "Unknown"):
                                 last_msg = line.split("]", 1)[1].strip()
+                                last_time = line.split("]", 1)[0].strip("[")
+                                if "VNC: RUNNING" in line: vnc_status = "RUNNING"
+                            
+                            if "[AGENT]" in line and (not last_msg or last_msg == "Unknown"):
+                                last_msg = line.split("]", 1)[1].replace("[AGENT]", "").strip()
                                 last_time = line.split("]", 1)[0].strip("[")
 
                         # Add to scrolling log (last 15 entries for readability)
                         for line in lines[-15:]:
                             feed_content.append(f"[{ip_addr}] {line}")
-                
-                # Check for existing instruction files for this IP
+
+                # Links for the card
                 instr_link = f"/evidence/{ip_addr}"
                 log_link = f"/audit_logs/{ip_addr}/client_activity.log"
-                
+
+                # Connection IP: Prefer Tailscale for remote commands
+                conn_ip = tailscale_ip if tailscale_ip != "N/A" else ip_addr
+
+                # Hang Detection: If fetched instructions but no evidence/heartbeat recently
+                is_stale = False
+                now = datetime.datetime.now()
+                last_update_parsed = None
+                try:
+                    last_update_parsed = datetime.datetime.strptime(last_time, "%Y%m%d_%H%M%S")
+                    if (now - last_update_parsed).total_seconds() > 300: # 5 Minutes
+                        is_stale = True
+                except: pass
+
+                # If the last message was "fetched instructions" and we are stale, it's definitely hung
+                is_hung = is_stale and ("[SERVER] Client fetched instructions.sh" in last_msg or "Waiting for in-browser confirmation" in last_msg)
+
                 # Generate Card HTML with Metadata
                 status_class = "status-running" if vnc_status == "RUNNING" else "status-stopped"
+                if is_hung: status_class = "status-error status-hung"
+                elif is_stale: status_class = "status-warning"
+                
+                # Prominent display logic: Hostname + Tailscale IP
+                ts_badge = f'<span class="pc-ts-tag">{tailscale_ip}</span>' if tailscale_ip != "N/A" else ""
+                
                 card = f"""
-                <div class="pc-card" onclick="showMenu(event, '{ip_addr}', '{instr_link}', '{log_link}')">
+                <div class="pc-card" 
+                     onclick="openDetails(event, '{ip_addr}', '{instr_link}', '{log_link}', '{conn_ip}', '{display_name}')"
+                     oncontextmenu="showMenu(event, '{ip_addr}', '{instr_link}', '{log_link}', '{conn_ip}')"
+                     data-ip="{ip_addr}" 
+                     data-instr="{instr_link}" 
+                     data-log="{log_link}" 
+                     data-conn="{conn_ip}" 
+                     data-name="{display_name}">
                     <div class="pc-card-header">
-                        <span class="pc-ip">{ip_addr}</span>
-                        <span class="vnc-badge {status_class}">VNC: {vnc_status}</span>
+                        <div class="pc-title-group">
+                            <div class="pc-main-line">
+                                <span class="pc-name">{display_name}</span>
+                                {ts_badge}
+                            </div>
+                            <span class="pc-ip-sub">Local: {ip_addr}</span>
+                        </div>
+                        <span class="vnc-badge {status_class}">{"HUNG" if is_hung else ("STALE" if is_stale else vnc_status)}</span>
                     </div>
                     <div class="pc-card-body">
                         <div class="pc-last-seen">Last: {last_time}</div>
-                        <div class="pc-tailscale">TS: {tailscale_ip}</div>
-                        <div class="pc-activity">{last_msg}</div>
+                        <div class="pc-activity">{last_msg[:65]}...</div>
                     </div>
                 </div>
                 """
@@ -267,6 +347,89 @@ class RescueHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         except Exception as e:
             self.send_error(500, str(e))
+
+    def _handle_pulse(self):
+        """Sends an immediate 'wake up' signal to the target PC."""
+        from urllib.parse import urlparse, parse_qs
+        query_components = parse_qs(urlparse(self.path).query)
+        target_ip = query_components.get('ip', [None])[0]
+        
+        if not target_ip:
+            self.send_error(400, "Missing IP parameter")
+            return
+
+        # Attempt to find Tailscale IP for better reliability
+        ts_ip = "N/A"
+        evidence_dir = Path("evidence") / target_ip
+        if evidence_dir.exists():
+            cap_files = sorted(list(evidence_dir.glob("*_capabilities.json")), reverse=True)
+            if cap_files:
+                try:
+                    import json
+                    with open(cap_files[0], "r") as fcap:
+                        cap_data = json.load(fcap)
+                        ts_ip = cap_data.get("network", {}).get("tailscale_ip", "N/A")
+                except: pass
+
+        notify_ip = ts_ip if ts_ip != "N/A" else target_ip
+        self._notify_pc_async(override_ip=notify_ip)
+        
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        import json
+        self.wfile.write(json.dumps({"message": f"Pulse signal sent to {notify_ip}"}).encode())
+
+    def _handle_client_details(self):
+        """Fetches detailed logs and profile info for a specific client IP."""
+        from urllib.parse import urlparse, parse_qs
+        import json
+        query_components = parse_qs(urlparse(self.path).query)
+        target_ip = query_components.get('ip', [None])[0]
+        
+        if not target_ip:
+            self.send_error(400, "Missing IP parameter")
+            return
+
+        hostname, hw_model, tailscale_ip, display_name = self._get_pc_identity(target_ip)
+
+        data = {
+            "ip": target_ip,
+            "display_name": display_name,
+            "activity_log": [],
+            "last_audit": "No audit log found.",
+            "capabilities": {}
+        }
+
+        # 1. Fetch IP-specific Activity Log (Last 30 lines)
+        log_path = Path("audit_logs") / target_ip / "client_activity.log"
+        if log_path.exists():
+            with open(log_path, "r") as f:
+                data["activity_log"] = f.readlines()[-30:]
+
+        # 2. Fetch Most Recent Evidence (Audit Log)
+        evidence_dir = Path("evidence") / target_ip
+        if evidence_dir.exists():
+            # Get latest instructions.log or system_audit
+            audit_files = sorted(list(evidence_dir.glob("*_instructions.log")), reverse=True)
+            if audit_files:
+                try:
+                    with open(audit_files[0], "r", encoding="utf-8", errors="ignore") as f:
+                        data["last_audit"] = f.read()
+                except: data["last_audit"] = "Could not read audit file."
+
+            # Get capabilities
+            cap_files = sorted(list(evidence_dir.glob("*_capabilities.json")), reverse=True)
+            if cap_files:
+                try:
+                    with open(cap_files[0], "r") as f:
+                        data["capabilities"] = json.load(f)
+                except: pass
+
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode())
 
     def _handle_instructions(self):
         """Serves the instruction library page with dynamic IP and PC name."""
@@ -500,10 +663,6 @@ class RescueHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             print(f"[!] POST Error: {e}")
             self.send_error(500, str(e))
 
-        except Exception as e:
-            print(f"[!] POST Error: {e}")
-            self.send_error(500, str(e))
-
     def _success_response(self, message, notify=False):
         self.send_response(201)
         self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -515,25 +674,30 @@ class RescueHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if notify:
             self._notify_pc_async()
 
-    def _notify_pc_async(self):
+    def _notify_pc_async(self, override_ip=None):
         """Tries to ping the PC handshake server in the background."""
         import threading
         import urllib.request
         
-        # We try to guess the PC IP from the last request or local cache
-        # For now, let's look for heartbeats in the audit logs to find the IP
+        # Determine target IP
+        target_ip = override_ip or self.client_address[0]
+        if target_ip == '::1' or not target_ip: target_ip = '127.0.0.1'
+
         def peer_ping():
             try:
-                # Get IP of the client that just sent the POST
-                pc_ip = self.client_address[0]
-                if pc_ip and pc_ip != '127.0.0.1':
-                    url = f"http://{pc_ip}:8001/ping"
-                    print(f"[*] Notifying PC at {url}...")
-                    with urllib.request.urlopen(url, timeout=2) as r:
+                # Try Pulse Protocol port 8001
+                url = f"http://{target_ip}:8001/trigger"
+                print(f"[*] Pulsing PC at {url}...")
+                with urllib.request.urlopen(url, timeout=2) as r:
+                    pass
+            except Exception:
+                # Fallback to old port 8001/ping
+                try:
+                    url = f"http://{target_ip}:8001/ping"
+                    with urllib.request.urlopen(url, timeout=1) as r:
                         pass
-            except Exception as e:
-                # PC server might not be up yet or firewall blocked
-                pass
+                except:
+                    pass
 
         threading.Thread(target=peer_ping, daemon=True).start()
 
