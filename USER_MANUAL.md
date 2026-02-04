@@ -116,7 +116,7 @@ bash diag_vnc.sh
 
 This script checks the X Server, display variables, and port availability. It automatically uploads a `vnc_diag.log` to the Mac for review.
 
-### H. Intelligent Rescue Agent (v1.5.0)
+### H. Intelligent Rescue Agent (v1.6.1)
 
 For advanced monitoring and "Zero-Touch" updates, launch the Python-based Intelligent Agent:
 

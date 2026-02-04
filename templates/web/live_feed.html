@@ -445,6 +445,69 @@
             font-size: 0.9rem;
             font-family: monospace;
         }
+
+        /* Server Dashboard Component */
+        .server-dashboard {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            flex-wrap: wrap;
+            margin-bottom: 5px;
+        }
+
+        .server-stat {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .stat-label {
+            font-size: 0.65rem;
+            color: #8b949e;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+        }
+
+        .stat-value {
+            font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, monospace;
+            font-weight: 800;
+            font-size: 1.1rem;
+            color: var(--accent-color);
+        }
+
+        .server-nav {
+            margin-left: auto;
+            display: flex;
+            gap: 15px;
+            border-left: 1px solid var(--border-color);
+            padding-left: 20px;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            color: var(--text-color);
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid transparent;
+        }
+
+        .nav-link:hover {
+            background: rgba(9, 105, 218, 0.1);
+            color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
     </style>
 </head>
 
@@ -459,6 +522,23 @@
     </div>
 
     <div class="main-container">
+        <!-- Server Identity & Navigation -->
+        <div class="server-dashboard">
+            <div class="server-stat">
+                <span class="stat-label">📡 Macbook Local IP</span>
+                <span class="stat-value">{{MAC_IP}}</span>
+            </div>
+            <div class="server-stat">
+                <span class="stat-label">🔒 Tailscale IP</span>
+                <span class="stat-value">{{MAC_TS_IP}}</span>
+            </div>
+
+            <div class="server-nav">
+                <a href="/instructions" class="nav-link">📚 Instruction Library</a>
+                <a href="/scripts" class="nav-link">📂 Browse Scripts</a>
+            </div>
+        </div>
+
         <!-- Structured PC Cards -->
         <div class="cards-grid">
             {{PC_CARDS}}

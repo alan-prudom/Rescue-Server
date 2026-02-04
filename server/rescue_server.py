@@ -142,6 +142,40 @@ class RescueHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         super().do_GET()
 
+    def _get_server_ips(self):
+        """Returns the Mac server's local IP and Tailscale IP if available."""
+        import socket
+        local_ip = "Unknown"
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            # Connect to a public IP to find the preferred local interface
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+        except:
+            local_ip = "127.0.0.1"
+        finally:
+            s.close()
+            
+        ts_ip = "N/A"
+        try:
+            import subprocess
+            # Try to get tailscale IPv4 via CLI
+            res = subprocess.run(["tailscale", "ip", "-4"], capture_output=True, text=True, timeout=1)
+            if res.returncode == 0:
+                ts_ip = res.stdout.strip()
+            else:
+                # Fallback: check ifconfig for 100.x.y.z addresses (Tailscale range)
+                res = subprocess.run(["ifconfig"], capture_output=True, text=True, timeout=1)
+                if res.returncode == 0:
+                    import re
+                    matches = re.findall(r"inet (100\.[0-9]+\.[0-9]+\.[0-9]+)", res.stdout)
+                    if matches:
+                        ts_ip = matches[0]
+        except:
+            pass
+            
+        return local_ip, ts_ip
+
     def _handle_live_feed(self):
         """Displays an aggregated live activity log and PC status cards."""
         self.send_response(200)
@@ -246,6 +280,9 @@ class RescueHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         log_html = "".join([f'<div class="log-entry">{l}</div>' for l in feed_content[:50]])
         cards_html = "".join(pc_cards_html) if pc_cards_html else "<p>No PCs connected yet.</p>"
 
+        # Get server IPs for the header
+        local_ip, ts_ip = self._get_server_ips()
+
         # Load template
         template_path = Path("templates/web/live_feed.html")
         if template_path.exists():
@@ -253,6 +290,8 @@ class RescueHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 html = f.read()
                 html = html.replace("{{PC_CARDS}}", cards_html)
                 html = html.replace("{{FEED_CONTENT}}", log_html)
+                html = html.replace("{{MAC_IP}}", local_ip)
+                html = html.replace("{{MAC_TS_IP}}", ts_ip)
         else:
             html = f"<html><body><h1>Cards</h1>{cards_html}<h1>Log</h1><pre>{log_html}</pre></body></html>"
         

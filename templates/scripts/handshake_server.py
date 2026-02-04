@@ -8,9 +8,9 @@ SIGNAL_FILE = ".trigger_sync"
 
 class HandshakeHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path == '/ping':
-            print("[*] Handshake: Ping received from Mac!")
-            # Create signal file to trigger immediate sync in bootstrap
+        if self.path == '/ping' or self.path == '/trigger':
+            print(f"[*] Handshake: {self.path} received from Mac!")
+            # Create signal file to trigger immediate sync in bootstrap or agent
             with open(SIGNAL_FILE, "w") as f:
                 f.write("1")
             

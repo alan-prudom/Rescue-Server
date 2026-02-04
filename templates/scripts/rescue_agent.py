@@ -6,17 +6,28 @@ import json
 import socket
 import hashlib
 
-# PC Rescue Station: Unified Python Agent (v1.5.0)
-# FEATURES: Verbose Loop Logging, Self-Updating, Checksum-Sync, Smart Polling
+# PC Rescue Station: Unified Python Agent (v1.6.1)
+# FEATURES: Verbose Loop Logging, Self-Updating, Checksum-Sync, Smart Polling, Pulse Protocol
 
-VERSION = "1.5.0"
+VERSION = "1.6.1"
 MAC_IPS = ["192.168.1.61", "192.168.1.244", "192.168.1.8", "100.87.229.122"]
 PORT = 8000
+SIGNAL_FILE = ".trigger_sync"
 
 # Timing settings (seconds)
 PROFILER_INTERVAL = 3600  
 HEARTBEAT_MIN = 30        
 HEARTBEAT_MAX = 300       
+
+def interruptible_sleep(seconds):
+    """Sleeps but checks for .trigger_sync every second."""
+    for _ in range(int(seconds)):
+        if os.path.exists(SIGNAL_FILE):
+            print("[*] Pulse signal detected! Interrupting sleep...")
+            os.remove(SIGNAL_FILE)
+            return True
+        time.sleep(1)
+    return False
 
 def get_file_hash(filepath):
     """Calculate MD5 hash of a local file."""
@@ -149,8 +160,11 @@ def main():
             print(f"[3/3] Sending heartbeat. Sleeping for {int(heartbeat_delay)}s...")
             log_status(f"Cycle complete. Passive for {int(heartbeat_delay)}s.", server_url)
             
-            time.sleep(heartbeat_delay)
-            heartbeat_delay = min(heartbeat_delay * 1.5, HEARTBEAT_MAX)
+            interrupted = interruptible_sleep(heartbeat_delay)
+            if interrupted:
+                heartbeat_delay = HEARTBEAT_MIN
+            else:
+                heartbeat_delay = min(heartbeat_delay * 1.5, HEARTBEAT_MAX)
             
         except KeyboardInterrupt:
             print("\n👋 Agent stopping.")
